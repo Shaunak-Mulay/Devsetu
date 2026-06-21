@@ -24,3 +24,11 @@ server/reconstruct-app.js
 server/retrieve-backup.js
 server/search-history.js
 src/App.jsx.reconstructed
+
+# IDE files
+.idea/
+android/.idea/
+*.iml
+
+# Release folders
+Release/
