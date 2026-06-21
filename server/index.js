@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { database } from './database.js';
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 // Enable CORS for frontend requests
 app.use(cors({
