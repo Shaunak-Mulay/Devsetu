@@ -39,7 +39,7 @@ import { servicesData, translations, sampleScreenshots, mockAstrologers } from "
 const getApiBase = () => {
   const saved = localStorage.getItem("devsetu_api_base");
   if (saved) return saved;
-  const defaultBase = "http://10.198.94.249:5000";
+  const defaultBase = "https://devsetu-4wav.onrender.com";
   if (typeof window !== 'undefined') {
     // In Capacitor (native app)
     if (window.Capacitor) {
