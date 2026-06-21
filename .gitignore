@@ -15,3 +15,12 @@ build/
 
 # Logs
 *.log
+
+# Debug and helper scripts
+server/debug-*.js
+server/find-view-calls.js
+server/inspect-*.js
+server/reconstruct-app.js
+server/retrieve-backup.js
+server/search-history.js
+src/App.jsx.reconstructed
