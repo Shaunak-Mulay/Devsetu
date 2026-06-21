@@ -36,6 +36,28 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 import { servicesData, translations, sampleScreenshots, mockAstrologers } from "./data";
+const getApiBase = () => {
+  const saved = localStorage.getItem("devsetu_api_base");
+  if (saved) return saved;
+  const defaultBase = "http://10.198.94.249:5000";
+  if (typeof window !== 'undefined') {
+    // In Capacitor (native app)
+    if (window.Capacitor) {
+      return defaultBase;
+    }
+    // In local web browser
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return "http://localhost:5000";
+    }
+    // In web browser via custom network hostname/IP
+    if (window.location.hostname) {
+      return `http://${window.location.hostname}:5000`;
+    }
+  }
+  return defaultBase;
+};
+const API_BASE = getApiBase();
+
 
 const localTranslations = {
   en: {
@@ -116,20 +138,79 @@ export default function App() {
   // Global Shared State
   const [theme, setTheme] = useState(() => localStorage.getItem("devsetu_theme") || "light");
   const [language, setLanguage] = useState(() => localStorage.getItem("devsetu_lang") || "en");
-  
+
+  // Current User (Astrologer) Profile
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem("devsetu_user");
+    return saved ? JSON.parse(saved) : null;
+  });
+
   // Accessibility & Missing Page States
   const [isSplash, setIsSplash] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("devsetu_user"));
+  const [adminUser, setAdminUser] = useState(() => {
+    const saved = localStorage.getItem("devsetu_admin_user");
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => !!localStorage.getItem("devsetu_admin_user"));
   const [isAccessibilityMode, setIsAccessibilityMode] = useState(false);
-  
+
+  // Forgot Password States
+  const [forgotStep, setForgotStep] = useState(0); // 0 = off, 1 = enter email, 2 = enter OTP, 3 = enter new password, 4 = success
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [forgotError, setForgotError] = useState(null);
+  const [forgotRemainingAttempts, setForgotRemainingAttempts] = useState(5);
+
+  // Login OTP States (for pending account auto-approval verification)
+  const [showLoginOtp, setShowLoginOtp] = useState(false);
+  const [loginOtpCode, setLoginOtpCode] = useState("");
+  const [loginOtpError, setLoginOtpError] = useState(null);
+  const [loginOtpEmail, setLoginOtpEmail] = useState("");
+
+  // Play Store Release Readiness Modal States
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+
+  // Astrologer Change Password States
+  const [showSecurity, setShowSecurity] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [securityError, setSecurityError] = useState(null);
+  const [securitySuccess, setSecuritySuccess] = useState(false);
+
+  // Admin Change Password States
+  const [showAdminSecurityModal, setShowAdminSecurityModal] = useState(false);
+  const [adminCurrentPassword, setAdminCurrentPassword] = useState("");
+  const [adminNewPassword, setAdminNewPassword] = useState("");
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState("");
+  const [adminSecurityError, setAdminSecurityError] = useState(null);
+
   // Login Form States
   const [loginFormType, setLoginFormType] = useState("email"); // email or mobile
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginShowPassword, setLoginShowPassword] = useState(false);
-  
+
+  // Signup Form States
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registeredProfileId, setRegisteredProfileId] = useState(null);
+  const [loginError, setLoginError] = useState(null);
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPhone, setSignupPhone] = useState("");
+  const [signupState, setSignupState] = useState("Maharashtra");
+  const [signupCity, setSignupCity] = useState("Pune");
+  const [signupExperience, setSignupExperience] = useState("5 Years");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+
   // Admin Login States
   const [adminUsername, setAdminUsername] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -146,8 +227,16 @@ export default function App() {
   // Tab Management
   const [astroTab, setAstroTab] = useState("home"); // home, services, bookings, support, profile
   const [adminTab, setAdminTab] = useState("home"); // home, astrologers, payments, bookings, support
-  const [simulatorView, setSimulatorView] = useState("both"); // both, mobile, admin
-  
+  const [simulatorView, setSimulatorView] = useState(() => window.location.hash === "#admin" ? "admin" : "mobile");
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setSimulatorView(window.location.hash === "#admin" ? "admin" : "mobile");
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
   // Navigation stack in Mobile App
   const [selectedService, setSelectedService] = useState(null);
   const [isBookingFlow, setIsBookingFlow] = useState(null); // stores active package
@@ -155,115 +244,13 @@ export default function App() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Active bookings list
-  const [bookings, setBookings] = useState(() => {
-    const saved = localStorage.getItem("devsetu_bookings");
-    if (saved) return JSON.parse(saved);
-    return [
-      {
-        id: "BK-5431",
-        astrologerName: "Acharya K. N. Shastri",
-        serviceId: "mahamrityunjaya",
-        packageName: "Pancha Shanti (3 Pandits)",
-        amount: 11000,
-        astroFee: 1200,
-        clientName: "Sunita Sharma",
-        clientMobile: "9123456789",
-        city: "Varanasi",
-        date: "2026-06-18",
-        status: "submitted", // submitted / verification pending
-        txnId: "TXN8491023849",
-        screenshot: "phonepe",
-        notes: "Client is extremely weak, please prioritize health blessings.",
-        createdAt: "2026-06-17T11:00:00Z"
-      },
-      {
-        id: "BK-9082",
-        astrologerName: "Acharya K. N. Shastri",
-        serviceId: "kaalsarp",
-        packageName: "Trimbakeshwar Special Vidhi",
-        amount: 9500,
-        astroFee: 1000,
-        clientName: "Rajesh Malhotra",
-        clientMobile: "9876543210",
-        city: "Nashik",
-        date: "2026-06-20",
-        status: "approved",
-        txnId: "TXN9832710321",
-        screenshot: "gpay",
-        notes: "Please arrange black sesame seeds.",
-        createdAt: "2026-06-16T09:15:00Z"
-      },
-      {
-        id: "BK-1204",
-        astrologerName: "Acharya K. N. Shastri",
-        serviceId: "rudrabhishek",
-        packageName: "Jal & Panchamrut Abhishek",
-        amount: 3800,
-        astroFee: 350,
-        clientName: "Amit Deshmukh",
-        clientMobile: "9988776655",
-        city: "Pune",
-        date: "2026-06-10",
-        status: "completed",
-        txnId: "TXN1029384756",
-        screenshot: "paytm",
-        notes: "Monday morning standard pooja schedule.",
-        createdAt: "2026-06-09T08:30:00Z"
-      }
-    ];
-  });
+  const [bookings, setBookings] = useState([]);
 
   // Active Chats (Shared between Mobile & Admin)
-  const [chats, setChats] = useState(() => {
-    const saved = localStorage.getItem("devsetu_chats");
-    if (saved) return JSON.parse(saved);
-    return [
-      {
-        id: 1,
-        sender: "admin",
-        text: "Namaste Acharya Ji, how can we assist you with your pooja bookings today?",
-        timestamp: "04:12 PM",
-        category: "General Help",
-        read: true
-      },
-      {
-        id: 2,
-        sender: "astrologer",
-        text: "Pranam, I have submitted a booking for Mahamrityunjaya Pooja. Client has sent the payment. Please verify it.",
-        timestamp: "04:15 PM",
-        category: "Payment Issues",
-        read: true
-      },
-      {
-        id: 3,
-        sender: "admin",
-        text: "Sure Shastri Ji, please upload the screenshot and Txn ID. I will verify it within 5 minutes.",
-        timestamp: "04:17 PM",
-        category: "Payment Issues",
-        read: true
-      }
-    ];
-  });
+  const [chats, setChats] = useState([]);
 
   // Notifications
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "Booking Approved",
-      body: "Kaalsarp Dosh Nivaran for Rajesh Malhotra has been approved by admin.",
-      time: "2 hrs ago",
-      type: "approved",
-      read: false
-    },
-    {
-      id: 2,
-      title: "Payment Received",
-      body: "Advance for Rudrabhishek Pooja (Amit Deshmukh) has been successfully verified.",
-      time: "1 day ago",
-      type: "verified",
-      read: true
-    }
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   // Form Inputs - Mobile App
   const [bookingForm, setBookingForm] = useState({
@@ -273,30 +260,23 @@ export default function App() {
     preferredDate: "",
     notes: ""
   });
-  
+
   // Payment Inputs - Mobile App
   const [paymentTxnId, setPaymentTxnId] = useState("");
   const [selectedMockScreenshot, setSelectedMockScreenshot] = useState("gpay");
   const [uploadedScreenshot, setUploadedScreenshot] = useState(null);
-  
+
   // Chat Inputs
   const [astroChatMsg, setAstroChatMsg] = useState("");
   const [astroChatCategory, setAstroChatCategory] = useState("General Queries");
   const [attachedFile, setAttachedFile] = useState(null); // mock file attachment state
-  
+
   // Support Ticket States
-  const [tickets, setTickets] = useState(() => {
-    const saved = localStorage.getItem("devsetu_tickets");
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: "TK-9402", category: "Payment Issues", status: "Open", subject: "Verify payment for Mahamrityunjaya Pooja BK-5431", lastUpdate: "10 mins ago" },
-      { id: "TK-1082", category: "Booking Issues", status: "Resolved", subject: "Slot availability at Trimbakeshwar for Rajesh Malhotra", lastUpdate: "2 days ago" }
-    ];
-  });
+  const [tickets, setTickets] = useState([]);
   const [activeTicketId, setActiveTicketId] = useState("TK-9402");
   const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
   const [newTicketForm, setNewTicketForm] = useState({ category: "General Queries", subject: "" });
-  
+
   // Astrologer Bookings Filter Tab State
   const [astroBookingFilter, setAstroBookingFilter] = useState("all");
 
@@ -306,20 +286,123 @@ export default function App() {
   const [adminBookingSearch, setAdminBookingSearch] = useState("");
   const [adminBookingFilter, setAdminBookingFilter] = useState("all");
   const [broadcastText, setBroadcastText] = useState("");
+  const [registeredUsers, setRegisteredUsers] = useState([]);
 
-  // Sync state to local storage
+  // Polling useEffect (5-second interval) to fetch from backend and sync with fallback
   useEffect(() => {
-    localStorage.setItem("devsetu_bookings", JSON.stringify(bookings));
-  }, [bookings]);
+    const fetchData = async () => {
+      try {
+        const bookingsRes = await fetch(`${API_BASE}/api/bookings`);
+        if (bookingsRes.ok) {
+          const data = await bookingsRes.json();
+          setBookings(data);
+          localStorage.setItem("devsetu_bookings", JSON.stringify(data));
+        } else {
+          throw new Error("HTTP error");
+        }
+      } catch (err) {
+        console.warn("Using local bookings fallback.");
+        const saved = localStorage.getItem("devsetu_bookings");
+        if (saved) setBookings(JSON.parse(saved));
+      }
 
-  useEffect(() => {
-    localStorage.setItem("devsetu_chats", JSON.stringify(chats));
-  }, [chats]);
+      try {
+        const ticketsRes = await fetch(`${API_BASE}/api/tickets`);
+        if (ticketsRes.ok) {
+          const data = await ticketsRes.json();
+          setTickets(data);
+          localStorage.setItem("devsetu_tickets", JSON.stringify(data));
+        } else {
+          throw new Error("HTTP error");
+        }
+      } catch (err) {
+        console.warn("Using local tickets fallback.");
+        const saved = localStorage.getItem("devsetu_tickets");
+        if (saved) setTickets(JSON.parse(saved));
+      }
 
-  useEffect(() => {
-    localStorage.setItem("devsetu_tickets", JSON.stringify(tickets));
-  }, [tickets]);
+      try {
+        const chatsRes = await fetch(`${API_BASE}/api/chats`);
+        if (chatsRes.ok) {
+          const data = await chatsRes.json();
+          setChats(data);
+          localStorage.setItem("devsetu_chats", JSON.stringify(data));
+        } else {
+          throw new Error("HTTP error");
+        }
+      } catch (err) {
+        console.warn("Using local chats fallback.");
+        const saved = localStorage.getItem("devsetu_chats");
+        if (saved) setChats(JSON.parse(saved));
+      }
 
+      try {
+        const notifEmail = currentUser?.email || "";
+        const notifUrl = notifEmail ? `${API_BASE}/api/notifications?email=${encodeURIComponent(notifEmail)}` : `${API_BASE}/api/notifications`;
+        const notificationsRes = await fetch(notifUrl);
+        if (notificationsRes.ok) {
+          const data = await notificationsRes.json();
+          setNotifications(data);
+        } else {
+          throw new Error("HTTP error");
+        }
+      } catch (err) {
+        console.warn("Using local notifications fallback.");
+      }
+
+      if (currentUser && currentUser.email) {
+        try {
+          const sessionRes = await fetch(`${API_BASE}/api/auth/session-status?email=${encodeURIComponent(currentUser.email)}&sessionVersion=${currentUser.sessionVersion || 1}`);
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            if (sessionData.active === false) {
+              setCurrentUser(null);
+              localStorage.removeItem("devsetu_user");
+              setIsLoggedIn(false);
+              alert("Your session has expired due to a password change. Please login again.");
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to check session status");
+        }
+      }
+
+      if (adminUser && adminUser.email) {
+        try {
+          const sessionRes = await fetch(`${API_BASE}/api/auth/session-status?email=${encodeURIComponent(adminUser.email)}&sessionVersion=${adminUser.sessionVersion || 1}`);
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            if (sessionData.active === false) {
+              setAdminUser(null);
+              localStorage.removeItem("devsetu_admin_user");
+              setIsAdminLoggedIn(false);
+              alert("Admin session has expired due to a password change. Please login again.");
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to check admin session status");
+        }
+      }
+
+      try {
+        const usersRes = await fetch(`${API_BASE}/api/users`);
+        if (usersRes.ok) {
+          const data = await usersRes.json();
+          setRegisteredUsers(data);
+        } else {
+          throw new Error("HTTP error");
+        }
+      } catch (err) {
+        console.warn("Using local users fallback.");
+      }
+    };
+
+    fetchData(); // initial fetch
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  // Sync theme to local storage
   useEffect(() => {
     localStorage.setItem("devsetu_theme", theme);
     const root = document.documentElement;
@@ -330,6 +413,7 @@ export default function App() {
     }
   }, [theme]);
 
+  // Sync language to local storage
   useEffect(() => {
     localStorage.setItem("devsetu_lang", language);
   }, [language]);
@@ -353,9 +437,35 @@ export default function App() {
     }
   };
 
+  // Merge mockAstrologers with registeredUsers mapped to look like astrologers
+  const astrologersList = useMemo(() => {
+    const usersMapped = registeredUsers.map((u, idx) => ({
+      id: u.profileId || `DEV-AST-REG-${idx + 1}`,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      state: u.state || "Maharashtra",
+      city: u.city || "Pune",
+      location: `${u.city || "Pune"}, ${u.state || "Maharashtra"}`,
+      rating: "5.0",
+      avatar: "🧘",
+      joined: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "New",
+      experience: u.experience || "5 Years",
+      accountStatus: u.accountStatus || "pending",
+      totalBookings: bookings.filter(b => b.astrologerName === u.name).length
+    }));
+    
+    const mockNames = mockAstrologers.map(m => m.name.toLowerCase());
+    const filteredUsers = usersMapped.filter(u => !mockNames.includes(u.name.toLowerCase()));
+    
+    const approvedMock = mockAstrologers.map(m => ({ ...m, accountStatus: "approved" }));
+    
+    return [...approvedMock, ...filteredUsers];
+  }, [registeredUsers, bookings]);
+
   // Derived Admin Statistics
   const stats = useMemo(() => {
-    const totalAstro = mockAstrologers.length;
+    const totalAstro = astrologersList.length;
     const totalBookings = bookings.length;
     const pendingPayments = bookings.filter(b => b.status === "submitted").length;
     const approvedBookings = bookings.filter(b => ["approved", "scheduled", "completed"].includes(b.status)).length;
@@ -363,304 +473,416 @@ export default function App() {
       .filter(b => ["approved", "scheduled", "completed"].includes(b.status))
       .reduce((sum, b) => sum + (b.amount * 0.1), 0); // 10% Devsetu platform fee represented
     return { totalAstro, totalBookings, pendingPayments, approvedBookings, revenue };
-  }, [bookings]);
+  }, [bookings, astrologersList]);
+
+  // Handle Login Submit using fetch request
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setLoginError(null);
+    try {
+      const payload = {
+        loginFormType,
+        email: loginEmail,
+        phone: loginPhone,
+        password: loginPassword
+      };
+
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403 && data.profileId) {
+          setLoginError({ type: "pending", profileId: data.profileId, message: data.error });
+        } else {
+          setLoginError({ type: "general", message: data.error || "Login failed." });
+        }
+        return;
+      }
+
+      setCurrentUser(data.user);
+      localStorage.setItem("devsetu_user", JSON.stringify(data.user));
+      setIsLoggedIn(true);
+
+      // Reset form fields
+      setLoginEmail("");
+      setLoginPhone("");
+      setLoginPassword("");
+    } catch (err) {
+      console.error(err);
+      setLoginError({ type: "general", message: "Network error occurred during login." });
+    }
+  };
+
+  // Handle Signup Submit using fetch request
+  const handleSignUpSubmit = async (e) => {
+    e.preventDefault();
+    setLoginError(null);
+    if (signupPassword !== signupConfirmPassword) {
+      alert("Passwords do not match!");
+      return;
+    }
+
+    try {
+      const payload = {
+        name: signupName,
+        email: signupEmail,
+        phone: signupPhone,
+        password: signupPassword,
+        state: signupState,
+        city: signupCity,
+        experience: signupExperience
+      };
+
+      const res = await fetch(`${API_BASE}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Registration failed.");
+        return;
+      }
+
+      // Show success screen with generated profile ID
+      setRegisteredProfileId(data.user.profileId);
+
+      // Clear sign-up form fields
+      setSignupName("");
+      setSignupEmail("");
+      setSignupPhone("");
+      setSignupPassword("");
+      setSignupConfirmPassword("");
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred during registration.");
+    }
+  };
 
   // Handle Astrologer Booking Form Submission
-  const handleBookingSubmit = (e) => {
+  const handleBookingSubmit = async (e) => {
     e.preventDefault();
     if (!bookingForm.clientName || !bookingForm.clientMobile || !bookingForm.preferredDate) {
       alert("Please fill all required fields.");
       return;
     }
     
-    // Create new temporary booking in "created" state
-    const newBookingId = "BK-" + Math.floor(1000 + Math.random() * 9000);
-    const newBooking = {
-      id: newBookingId,
-      astrologerName: "Acharya K. N. Shastri",
-      serviceId: selectedService.id,
-      packageName: isBookingFlow.name[language] || isBookingFlow.name.en,
-      amount: isBookingFlow.price,
-      astroFee: isBookingFlow.astroFee,
-      clientName: bookingForm.clientName,
-      clientMobile: bookingForm.clientMobile,
-      city: bookingForm.city,
-      date: bookingForm.preferredDate,
-      status: "created",
-      notes: bookingForm.notes,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const payload = {
+        astrologerName: currentUser?.name || "Acharya Shastri",
+        astrologerProfileId: currentUser?.profileId || "DEV-AST-00001",
+        serviceId: selectedService.id,
+        packageName: isBookingFlow.name[language] || isBookingFlow.name.en,
+        amount: isBookingFlow.price,
+        astroFee: isBookingFlow.astroFee,
+        clientName: bookingForm.clientName,
+        clientMobile: bookingForm.clientMobile,
+        city: bookingForm.city,
+        date: bookingForm.preferredDate,
+        notes: bookingForm.notes
+      };
 
-    setBookings([newBooking, ...bookings]);
-    setIsBookingFlow(null); // Close form
-    setTrackingBookingId(newBookingId);
-    setAstroTab("bookings");
-    
-    // Clear Form
-    setBookingForm({
-      clientName: "",
-      clientMobile: "",
-      city: "Varanasi",
-      preferredDate: "",
-      notes: ""
-    });
+      const res = await fetch(`${API_BASE}/api/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to create booking.");
+        return;
+      }
+
+      setBookings(prev => [data, ...prev]);
+      setIsBookingFlow(null); // Close form
+      setTrackingBookingId(data.id);
+      setAstroTab("bookings");
+      
+      // Clear Form
+      setBookingForm({
+        clientName: "",
+        clientMobile: "",
+        city: "Varanasi",
+        preferredDate: "",
+        notes: ""
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred during booking creation.");
+    }
   };
 
   // Submit payment details for booking
-  const handlePaymentSubmit = (bookingId) => {
+  const handlePaymentSubmit = async (bookingId) => {
     if (!paymentTxnId || paymentTxnId.trim().length < 8) {
       alert("Please enter a valid 12-digit transaction ID.");
       return;
     }
 
-    setBookings(prev => prev.map(b => {
-      if (b.id === bookingId) {
-        return {
-          ...b,
-          status: "submitted",
-          txnId: paymentTxnId,
-          screenshot: uploadedScreenshot || selectedMockScreenshot
-        };
+    try {
+      const payload = {
+        txnId: paymentTxnId,
+        screenshot: uploadedScreenshot || selectedMockScreenshot
+      };
+
+      const res = await fetch(`${API_BASE}/api/bookings/${bookingId}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to submit payment details.");
+        return;
       }
-      return b;
-    }));
 
-    // Trigger Notification for Admin
-    const notifyMsg = {
-      id: Date.now(),
-      title: "New Payment Submitted",
-      body: `Payment submitted for Booking ${bookingId} (₹${bookings.find(b => b.id === bookingId).amount})`,
-      time: "Just now",
-      type: "warning",
-      read: false
-    };
-    setNotifications([notifyMsg, ...notifications]);
+      setBookings(prev => prev.map(b => (b.id === bookingId ? data : b)));
 
-    // Send automated message in chat
-    const chatMsg = {
-      id: Date.now(),
-      ticketId: activeTicketId || "TK-9402",
-      sender: "astrologer",
-      text: `Submitted payment for booking ${bookingId}. Txn ID: ${paymentTxnId}. Please approve.`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      category: "Payment Issues",
-      read: false
-    };
-    setChats(prev => [...prev, chatMsg]);
+      // Send automated message in chat
+      const chatPayload = {
+        ticketId: activeTicketId || "TK-9402",
+        sender: "astrologer",
+        text: `Submitted payment for booking ${bookingId}. Txn ID: ${paymentTxnId}. Please approve.`,
+        category: "Payment Issues"
+      };
 
-    setPaymentTxnId("");
-    setUploadedScreenshot(null);
+      await fetch(`${API_BASE}/api/chats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(chatPayload)
+      });
+
+      setPaymentTxnId("");
+      setUploadedScreenshot(null);
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred during payment submission.");
+    }
   };
 
   // Admin verifies payment
-  const handleAdminVerifyPayment = (bookingId, isApproved) => {
-    setBookings(prev => prev.map(b => {
-      if (b.id === bookingId) {
-        return {
-          ...b,
-          status: isApproved ? "admin_review" : "cancelled"
-        };
+  const handleAdminVerifyPayment = async (bookingId, isApproved) => {
+    try {
+      const nextStatus = isApproved ? "admin_review" : "cancelled";
+      const res = await fetch(`${API_BASE}/api/bookings/${bookingId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to update payment status.");
+        return;
       }
-      return b;
-    }));
 
-    // Add notification to Astrologer
-    const newNotif = {
-      id: Date.now(),
-      title: isApproved ? "Payment Verified" : "Payment Rejected",
-      body: isApproved 
-        ? `Payment for booking ${bookingId} has been verified. Ritual slot allocation is now in review.` 
-        : `Payment for booking ${bookingId} has been rejected. Check support chat.`,
-      time: "Just now",
-      type: isApproved ? "verified" : "rejected",
-      read: false
-    };
-    setNotifications([newNotif, ...notifications]);
+      setBookings(prev => prev.map(b => (b.id === bookingId ? data : b)));
 
-    // Admin replies in support chat
-    const replyText = isApproved 
-      ? `We have verified transaction details for Booking ${bookingId}. The payment is approved. The booking has moved to Admin Review for scheduling and assignment of pandits.`
-      : `Transaction details for Booking ${bookingId} could not be verified. Please review the screenshot and try again.`;
+      // Admin replies in support chat
+      const replyText = isApproved 
+        ? `We have verified transaction details for Booking ${bookingId}. The payment is approved. The booking has moved to Admin Review for scheduling and assignment of pandits.`
+        : `Transaction details for Booking ${bookingId} could not be verified. Please review the screenshot and try again.`;
 
-    const chatMsg = {
-      id: Date.now(),
-      ticketId: activeTicketId || "TK-9402",
-      sender: "admin",
-      text: replyText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      category: "Payment Issues",
-      read: false
-    };
-    setChats(prev => [...prev, chatMsg]);
+      const chatPayload = {
+        ticketId: activeTicketId || "TK-9402",
+        sender: "admin",
+        text: replyText,
+        category: "Payment Issues"
+      };
+
+      await fetch(`${API_BASE}/api/chats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(chatPayload)
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred during payment verification.");
+    }
   };
 
   // Admin requests clarification on payment
-  const handleAdminRequestClarification = (bookingId) => {
+  const handleAdminRequestClarification = async (bookingId) => {
     const replyText = `Regarding Booking ${bookingId}, the transaction ref ID does not match our bank ledger logs. Please upload a clearer payment screenshot or confirm the Transaction ID.`;
     
-    const chatMsg = {
-      id: Date.now(),
-      ticketId: activeTicketId || "TK-9402",
-      sender: "admin",
-      text: replyText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      category: "Payment Issues",
-      read: false
-    };
-    setChats(prev => [...prev, chatMsg]);
+    try {
+      const chatPayload = {
+        ticketId: activeTicketId || "TK-9402",
+        sender: "admin",
+        text: replyText,
+        category: "Payment Issues"
+      };
 
-    const newNotif = {
-      id: Date.now(),
-      title: "Clarification Requested",
-      body: `Admin requested clarification for payment of booking ${bookingId}.`,
-      time: "Just now",
-      type: "warning",
-      read: false
-    };
-    setNotifications([newNotif, ...notifications]);
-    alert("Clarification request sent to the astrologer in support chat.");
+      await fetch(`${API_BASE}/api/chats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(chatPayload)
+      });
+
+      alert("Clarification request sent to the astrologer in support chat.");
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred during clarification request.");
+    }
   };
 
-  // Admin advances booking stage
-  const handleAdminUpdateStatus = (bookingId, nextStatus) => {
-    setBookings(prev => prev.map(b => {
-      if (b.id === bookingId) {
-        return { ...b, status: nextStatus };
+  // Admin updates booking status
+  const handleAdminUpdateStatus = async (bookingId, nextStatus) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/bookings/${bookingId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to update booking status.");
+        return;
       }
-      return b;
-    }));
 
-    let notifTitle = `Booking Update: ${nextStatus.toUpperCase()}`;
-    let notifBody = `Booking ${bookingId} status is now: ${nextStatus}.`;
-    let notifType = "info";
-
-    if (nextStatus === "approved") {
-      notifTitle = "Booking Approved";
-      notifBody = `Booking ${bookingId} is approved, slot allocated, and pandits assigned.`;
-      notifType = "approved";
-    } else if (nextStatus === "scheduled") {
-      notifTitle = "Ritual Scheduled";
-      notifBody = `Pooja ritual for booking ${bookingId} is scheduled and pandits are ready.`;
-      notifType = "info";
-    } else if (nextStatus === "completed") {
-      notifTitle = "Ritual Completed";
-      notifBody = `Ritual for booking ${bookingId} was completed successfully. Blessings sent!`;
-      notifType = "verified";
+      setBookings(prev => prev.map(b => (b.id === bookingId ? data : b)));
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred during status update.");
     }
+  };
 
-    const newNotif = {
-      id: Date.now(),
-      title: notifTitle,
-      body: notifBody,
-      time: "Just now",
-      type: notifType,
-      read: false
-    };
-    setNotifications([newNotif, ...notifications]);
+  // Admin updates astrologer registration status
+  const handleAdminUpdateUserStatus = async (email, nextStatus) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(email)}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountStatus: nextStatus })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to update user status.");
+        return;
+      }
+
+      // Update registeredUsers list state
+      setRegisteredUsers(prev => prev.map(u => u.email.toLowerCase() === email.toLowerCase() ? data : u));
+      alert(`Astrologer account status has been updated to ${nextStatus}.`);
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred during user status update.");
+    }
   };
 
   // Astrologer sends support message
-  const handleAstroSendMessage = (attachedFileData = null) => {
+  const handleAstroSendMessage = async (attachedFileData = null) => {
     if (!astroChatMsg.trim() && !attachedFileData) return;
 
-    const newMsg = {
-      id: Date.now(),
-      ticketId: activeTicketId || "TK-9402",
-      sender: "astrologer",
-      text: astroChatMsg,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      category: astroChatCategory,
-      read: false,
-      attachment: attachedFileData
-    };
-
-    setChats(prev => [...prev, newMsg]);
-    setAstroChatMsg("");
-    setAttachedFile(null);
-
-    // Update ticket's last update time
-    setTickets(prev => prev.map(t => {
-      if (t.id === activeTicketId) {
-        return { ...t, lastUpdate: "Just now" };
-      }
-      return t;
-    }));
-
-    // Simulate Admin Typing & reply if admin tab isn't open
-    setAdminTyping(true);
-    setTimeout(() => {
-      setAdminTyping(false);
-      const adminReply = {
-        id: Date.now() + 1,
+    try {
+      const chatPayload = {
         ticketId: activeTicketId || "TK-9402",
-        sender: "admin",
-        text: `Hare Krishna. We have received your query for Ticket ${activeTicketId || "TK-9402"}. Our support administrator is checking details.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sender: "astrologer",
+        text: astroChatMsg,
         category: astroChatCategory,
-        read: false
+        attachment: attachedFileData
       };
-      setChats(prev => [...prev, adminReply]);
-    }, 3000);
+
+      const res = await fetch(`${API_BASE}/api/chats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(chatPayload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to send message.");
+        return;
+      }
+
+      setChats(prev => [...prev, data]);
+      setAstroChatMsg("");
+      setAttachedFile(null);
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred during message send.");
+    }
   };
 
   // Admin sends support message
-  const handleAdminSendMessage = () => {
+  const handleAdminSendMessage = async () => {
     if (!adminChatMsg.trim()) return;
 
-    const newMsg = {
-      id: Date.now(),
-      ticketId: activeTicketId || "TK-9402",
-      sender: "admin",
-      text: adminChatMsg,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      category: "General Queries",
-      read: false
-    };
+    try {
+      const chatPayload = {
+        ticketId: activeTicketId || "TK-9402",
+        sender: "admin",
+        text: adminChatMsg,
+        category: "General Queries"
+      };
 
-    setChats(prev => [...prev, newMsg]);
-    setAdminChatMsg("");
+      const res = await fetch(`${API_BASE}/api/chats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(chatPayload)
+      });
 
-    // Trigger Notification for Astrologer
-    const newNotif = {
-      id: Date.now(),
-      title: "New Support Reply",
-      body: `Admin replied to support Ticket ${activeTicketId || "TK-9402"}.`,
-      time: "Just now",
-      type: "info",
-      read: false
-    };
-    setNotifications([newNotif, ...notifications]);
-
-    setTickets(prev => prev.map(t => {
-      if (t.id === activeTicketId) {
-        return { ...t, lastUpdate: "Just now" };
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to send message.");
+        return;
       }
-      return t;
-    }));
+
+      setChats(prev => [...prev, data]);
+      setAdminChatMsg("");
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred during message send.");
+    }
   };
 
   // Admin broadcasts system announcement
-  const handleBroadcastAnnouncement = () => {
+  const handleBroadcastAnnouncement = async () => {
     if (!broadcastText.trim()) {
       alert("Please enter announcement text.");
       return;
     }
-    const newNotif = {
-      id: Date.now(),
-      title: "System Announcement",
-      body: broadcastText,
-      time: "Just now",
-      type: "warning",
-      read: false
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-    setBroadcastText("");
-    alert("Broadcast announcement sent to all astrologers.");
+    try {
+      const newNotif = {
+        id: Date.now(),
+        title: "System Announcement",
+        body: broadcastText,
+        time: "Just now",
+        type: "warning",
+        read: false
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+      setBroadcastText("");
+      alert("Broadcast announcement sent to astrologers.");
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Clear unread notifications
-  const clearNotifications = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const clearNotifications = async () => {
+    try {
+      const email = currentUser?.email || "";
+      if (email) {
+        await fetch(`${API_BASE}/api/notifications/clear`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+      }
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Filter Bookings on Admin panel
@@ -698,8 +920,8 @@ export default function App() {
         <div className="brand-section">
           <img 
             src={theme === "light" 
-              ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDTuLVfFlIdG7O2IuP_bYErSDfHvdmJnN5o6fRLQ6eu_1osw1Wxq1CXioT-QGsiBQhD_eZZPotGJAt0b53g6We9UVwJeKJLb6Ud6lqfdemDHQUKFbGN_G4naaY9YpAxDov01slm000uHBGVzOrNXvUUw4DLnmSQUg--Jh7NUtF5fSQCCAFFqNI7CX9-Zx2BeY5lPwCcv4PDDBX-905ZMBSDFAQFEk7764LbkcgO5CxTa1zkZllh3zPQuYLA7SfJBs1Vx2P3CDOJ42jU" 
-              : "https://lh3.googleusercontent.com/aida/AP1WRLudWhyozNFGz-MIo4RZ0tNp2UYwqek0T0spYYWhrJt-A2nr0hlPDDom-R3si0uTtFvoD1cVRfgLt9sXfYszE5_rYMe862fg3jRWtkfqyOItdd-A0_6Xi1gHXml3iMwMkQ1Gv-6YfsvHJ7as_AOhzCADb01wzl-rxbV6pfPI9ZnubSsGcZ9dp9FNNWe0OaXJoCsn8gbe71qk1qWX17re89ljSD1dn5zvid5AK6YYIA8BemgfhCySrrgSTzf9erEv-IqeiFXWD7JMgg"}
+              ? "/devsetu_light_logo.png" 
+              : "/devsetu_dark_logo.png"}
             alt="DevSetu Logo" 
             className="brand-logo-img"
           />
@@ -707,21 +929,6 @@ export default function App() {
 
         {/* View Switchers & Translation Toggles */}
         <div className="header-controls">
-          {/* Dual Simulator Controller (only visible on wide screens) */}
-          <div className="btn-secondary" style={{ display: "flex", gap: "8px", padding: "6px 12px" }}>
-            <span style={{ fontSize: "11px", fontWeight: "700" }}>{t.roleSwitch}:</span>
-            <select 
-              value={simulatorView} 
-              onChange={(e) => setSimulatorView(e.target.value)}
-              className="form-select"
-              style={{ padding: "2px 8px", fontSize: "11px", border: "none", background: "transparent", fontWeight: "700" }}
-            >
-              <option value="both">Split View (Both)</option>
-              <option value="mobile">Astrologer App Only</option>
-              <option value="admin">Admin Dashboard Only</option>
-            </select>
-          </div>
-
           {/* Theme Switcher */}
           <button 
             onClick={() => setTheme(theme === "light" ? "dark" : "light")}
@@ -843,8 +1050,8 @@ export default function App() {
                     <div style={{ width: "100px", height: "100px", borderRadius: "50%", backgroundColor: "var(--phone-card-bg)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border-color)", overflow: "hidden", padding: "12px", zIndex: 1 }}>
                       <img 
                         src={theme === "light" 
-                          ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDTuLVfFlIdG7O2IuP_bYErSDfHvdmJnN5o6fRLQ6eu_1osw1Wxq1CXioT-QGsiBQhD_eZZPotGJAt0b53g6We9UVwJeKJLb6Ud6lqfdemDHQUKFbGN_G4naaY9YpAxDov01slm000uHBGVzOrNXvUUw4DLnmSQUg--Jh7NUtF5fSQCCAFFqNI7CX9-Zx2BeY5lPwCcv4PDDBX-905ZMBSDFAQFEk7764LbkcgO5CxTa1zkZllh3zPQuYLA7SfJBs1Vx2P3CDOJ42jU" 
-                          : "https://lh3.googleusercontent.com/aida/AP1WRLudWhyozNFGz-MIo4RZ0tNp2UYwqek0T0spYYWhrJt-A2nr0hlPDDom-R3si0uTtFvoD1cVRfgLt9sXfYszE5_rYMe862fg3jRWtkfqyOItdd-A0_6Xi1gHXml3iMwMkQ1Gv-6YfsvHJ7as_AOhzCADb01wzl-rxbV6pfPI9ZnubSsGcZ9dp9FNNWe0OaXJoCsn8gbe71qk1qWX17re89ljSD1dn5zvid5AK6YYIA8BemgfhCySrrgSTzf9erEv-IqeiFXWD7JMgg"}
+                          ? "/devsetu_light_logo.png" 
+                          : "/devsetu_dark_logo.png"}
                         alt="DevSetu Logo" 
                         style={{ width: "100%", height: "100%", objectFit: "contain" }}
                       />
@@ -898,14 +1105,30 @@ export default function App() {
                     >
                       {theme === "light" ? <Moon size={12} /> : <Sun size={12} />}
                     </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newUrl = prompt("Enter backend API base URL:", localStorage.getItem("devsetu_api_base") || "http://10.198.94.249:5000");
+                        if (newUrl !== null) {
+                          localStorage.setItem("devsetu_api_base", newUrl.trim());
+                          alert("API URL updated! Reloading app...");
+                          window.location.reload();
+                        }
+                      }}
+                      className="btn-secondary"
+                      style={{ width: "28px", height: "28px", padding: 0, borderRadius: "50%", border: "1px solid var(--border-color)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      title="Set API Base URL"
+                    >
+                      <Settings size={12} />
+                    </button>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "24px" }}>
                     <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "var(--phone-card-bg)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border-color)", marginBottom: "12px", padding: "8px" }}>
                       <img 
                         src={theme === "light" 
-                          ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDTuLVfFlIdG7O2IuP_bYErSDfHvdmJnN5o6fRLQ6eu_1osw1Wxq1CXioT-QGsiBQhD_eZZPotGJAt0b53g6We9UVwJeKJLb6Ud6lqfdemDHQUKFbGN_G4naaY9YpAxDov01slm000uHBGVzOrNXvUUw4DLnmSQUg--Jh7NUtF5fSQCCAFFqNI7CX9-Zx2BeY5lPwCcv4PDDBX-905ZMBSDFAQFEk7764LbkcgO5CxTa1zkZllh3zPQuYLA7SfJBs1Vx2P3CDOJ42jU" 
-                          : "https://lh3.googleusercontent.com/aida/AP1WRLudWhyozNFGz-MIo4RZ0tNp2UYwqek0T0spYYWhrJt-A2nr0hlPDDom-R3si0uTtFvoD1cVRfgLt9sXfYszE5_rYMe862fg3jRWtkfqyOItdd-A0_6Xi1gHXml3iMwMkQ1Gv-6YfsvHJ7as_AOhzCADb01wzl-rxbV6pfPI9ZnubSsGcZ9dp9FNNWe0OaXJoCsn8gbe71qk1qWX17re89ljSD1dn5zvid5AK6YYIA8BemgfhCySrrgSTzf9erEv-IqeiFXWD7JMgg"}
+                          ? "/devsetu_light_logo.png" 
+                          : "/devsetu_dark_logo.png"}
                         alt="DevSetu Logo" 
                         style={{ width: "100%", height: "100%", objectFit: "contain" }}
                       />
@@ -919,95 +1142,589 @@ export default function App() {
                   </div>
 
                   <div className="premium-card" style={{ padding: "20px" }}>
-                    <div className="login-tabs">
-                      <button 
-                        type="button"
-                        onClick={() => setLoginFormType("email")}
-                        className={`login-tab-btn ${loginFormType === "email" ? "active" : ""}`}
-                      >
-                        Email
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setLoginFormType("mobile")}
-                        className={`login-tab-btn ${loginFormType === "mobile" ? "active" : ""}`}
-                      >
-                        Mobile
-                      </button>
-                    </div>
+                    {forgotStep !== 0 ? (
+                      <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                        <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0, textAlign: "center" }}>
+                          Reset Password
+                        </h3>
+                        {forgotError && (
+                          <div className="alert-danger-box" style={{ padding: "10px", borderRadius: "6px", backgroundColor: "rgba(198, 40, 40, 0.05)", border: "1px solid var(--error)", fontSize: "11px", color: "var(--text-main)" }}>
+                            {forgotError}
+                          </div>
+                        )}
+                        
+                        {forgotStep === 1 && (
+                          <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setForgotError(null);
+                            try {
+                              const res = await fetch(`${API_BASE}/api/auth/forgot-password/request`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email: forgotEmail })
+                              });
+                              const data = await res.json();
+                              if (!res.ok) {
+                                setForgotError(data.error || "Failed to send reset code.");
+                              } else {
+                                setForgotStep(2);
+                                setForgotRemainingAttempts(5);
+                              }
+                            } catch (err) {
+                              setForgotError("Network error occurred.");
+                            }
+                          }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: "1.4" }}>
+                              Enter your registered email address to receive a secure 6-digit verification code.
+                            </p>
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">📧</span>
+                              <input 
+                                type="email" 
+                                required 
+                                placeholder="Registered Email" 
+                                className="minimal-input"
+                                value={forgotEmail}
+                                onChange={(e) => setForgotEmail(e.target.value)}
+                              />
+                            </div>
+                            <button type="submit" className="btn-primary" style={{ width: "100%", padding: "10px" }}>
+                              Request Verification Code
+                            </button>
+                            <button type="button" onClick={() => setForgotStep(0)} className="btn-secondary" style={{ width: "100%", padding: "10px" }}>
+                              Cancel
+                            </button>
+                          </form>
+                        )}
 
-                    <form onSubmit={(e) => { e.preventDefault(); setIsLoggedIn(true); }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                      {loginFormType === "email" ? (
-                        <div className="minimal-input-wrapper">
-                          <span className="minimal-input-icon">📧</span>
-                          <input 
-                            type="email" 
-                            required
-                            placeholder="Email Address" 
-                            className="minimal-input"
-                            value={loginEmail}
-                            onChange={(e) => setLoginEmail(e.target.value)}
-                          />
-                        </div>
-                      ) : (
-                        <div className="minimal-input-wrapper">
-                          <span className="minimal-input-icon">📱</span>
-                          <input 
-                            type="tel" 
-                            required
-                            placeholder="Mobile Number" 
-                            className="minimal-input"
-                            value={loginPhone}
-                            onChange={(e) => setLoginPhone(e.target.value)}
-                          />
-                        </div>
-                      )}
+                        {forgotStep === 2 && (
+                          <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setForgotError(null);
+                            try {
+                              const res = await fetch(`${API_BASE}/api/auth/forgot-password/verify`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email: forgotEmail, code: forgotOtp })
+                              });
+                              const data = await res.json();
+                              if (!res.ok) {
+                                setForgotError(data.error || "Verification failed.");
+                                if (data.error && data.error.includes("expired")) {
+                                  setForgotStep(1);
+                                } else {
+                                  setForgotRemainingAttempts(prev => Math.max(0, prev - 1));
+                                }
+                              } else {
+                                setForgotStep(3);
+                              }
+                            } catch (err) {
+                              setForgotError("Network error occurred.");
+                            }
+                          }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: "1.4" }}>
+                              We have sent a 6-digit OTP code to <strong>{forgotEmail}</strong>. Enter it below to proceed.
+                            </p>
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">🔑</span>
+                              <input 
+                                type="text" 
+                                required 
+                                maxLength={6}
+                                placeholder="6-Digit Code" 
+                                className="minimal-input"
+                                value={forgotOtp}
+                                onChange={(e) => setForgotOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                                style={{ fontFamily: "monospace", letterSpacing: "4px", fontSize: "14px", textAlign: "center" }}
+                              />
+                            </div>
+                            <div style={{ fontSize: "10px", color: "var(--text-muted)", textAlign: "center" }}>
+                              Attempts remaining: <span style={{ color: "var(--error)", fontWeight: "800" }}>{forgotRemainingAttempts}</span>
+                            </div>
+                            <button type="submit" className="btn-primary" style={{ width: "100%", padding: "10px" }}>
+                              Verify Code
+                            </button>
+                            <button type="button" onClick={() => setForgotStep(1)} className="btn-secondary" style={{ width: "100%", padding: "10px" }}>
+                              Back
+                            </button>
+                          </form>
+                        )}
 
-                      <div className="minimal-input-wrapper">
-                        <span className="minimal-input-icon">🔒</span>
-                        <input 
-                          type={loginShowPassword ? "text" : "password"} 
-                          required
-                          placeholder="Password" 
-                          className="minimal-input"
-                          value={loginPassword}
-                          onChange={(e) => setLoginPassword(e.target.value)}
-                          style={{ paddingRight: "36px" }}
-                        />
+                        {forgotStep === 3 && (
+                          <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setForgotError(null);
+                            if (forgotNewPassword !== forgotConfirmPassword) {
+                              setForgotError("Passwords do not match.");
+                              return;
+                            }
+                            try {
+                              const res = await fetch(`${API_BASE}/api/auth/forgot-password/reset`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email: forgotEmail, code: forgotOtp, newPassword: forgotNewPassword })
+                              });
+                              const data = await res.json();
+                              if (!res.ok) {
+                                setForgotError(data.error || "Failed to reset password.");
+                              } else {
+                                setForgotStep(4);
+                              }
+                            } catch (err) {
+                              setForgotError("Network error occurred.");
+                            }
+                          }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: "1.4" }}>
+                              Enter your new password below.
+                            </p>
+                            
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">🔒</span>
+                              <input 
+                                type="password" 
+                                required 
+                                placeholder="New Password" 
+                                className="minimal-input"
+                                value={forgotNewPassword}
+                                onChange={(e) => setForgotNewPassword(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">🔒</span>
+                              <input 
+                                type="password" 
+                                required 
+                                placeholder="Confirm New Password" 
+                                className="minimal-input"
+                                value={forgotConfirmPassword}
+                                onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                              />
+                            </div>
+                            
+                            <div style={{
+                              fontSize: "10px",
+                              backgroundColor: "var(--warm-cream-darker)",
+                              padding: "10px",
+                              borderRadius: "8px",
+                              border: "1px solid var(--border-color)",
+                              lineHeight: "1.4"
+                            }}>
+                              <strong style={{ color: "var(--primary-brown)" }}>Password Strength Rules:</strong>
+                              <ul style={{ margin: "4px 0 0 12px", padding: 0 }}>
+                                <li>At least 8 characters</li>
+                                <li>Uppercase & lowercase letters</li>
+                                <li>At least 1 number</li>
+                                <li>At least 1 special character</li>
+                              </ul>
+                            </div>
+
+                            <button type="submit" className="btn-primary" style={{ width: "100%", padding: "10px" }}>
+                              Reset Password
+                            </button>
+                            <button type="button" onClick={() => setForgotStep(2)} className="btn-secondary" style={{ width: "100%", padding: "10px" }}>
+                              Back
+                            </button>
+                          </form>
+                        )}
+
+                        {forgotStep === 4 && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "16px", alignItems: "center", textAlign: "center" }}>
+                            <div style={{ fontSize: "36px", color: "var(--success)" }}>✓</div>
+                            <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
+                              Password Reset Successful!
+                            </h4>
+                            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>
+                              Your password has been updated. You can now log in with your new password.
+                            </p>
+                            <button type="button" onClick={() => {
+                              setForgotStep(0);
+                              setForgotEmail("");
+                              setForgotOtp("");
+                              setForgotNewPassword("");
+                              setForgotConfirmPassword("");
+                              setForgotError(null);
+                            }} className="btn-primary" style={{ width: "100%", padding: "10px" }}>
+                              Proceed to Login
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : registeredProfileId ? (
+                      <div className="fade-in text-center" style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "12px 0", alignItems: "center" }}>
+                        <div style={{ fontSize: "40px", color: "var(--success)" }}>✓</div>
+                        <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "18px", color: "var(--text-main)", margin: 0 }}>Registration Received!</h3>
+                        <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
+                          Thank you for registering with DEVSETU CONNECT. Your astrologer account has been received and is currently pending verification.
+                        </p>
+                        
+                        <div style={{
+                          padding: "16px",
+                          borderRadius: "12px",
+                          backgroundColor: "var(--warm-cream-darker)",
+                          border: "1px solid var(--temple-gold)",
+                          width: "100%",
+                          boxSizing: "border-box"
+                        }}>
+                          <div style={{ fontSize: "10px", textTransform: "uppercase", color: "var(--text-muted)", fontWeight: "700" }}>Your Unique Profile ID</div>
+                          <div style={{ fontSize: "20px", fontWeight: "900", color: "var(--primary-brown)", fontFamily: "monospace", margin: "6px 0" }}>
+                            {registeredProfileId}
+                          </div>
+                          <span style={{ fontSize: "9px", padding: "2px 8px", backgroundColor: "var(--warning)", color: "var(--primary-brown)", borderRadius: "10px", fontWeight: "800", display: "inline-block" }}>
+                            PENDING VERIFICATION
+                          </span>
+                        </div>
+
+                        <p style={{ fontSize: "10px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
+                          An Email and SMS confirmation has been sent to your registered contact. Please wait for the admin to verify and approve your account.
+                        </p>
+
                         <button 
-                          type="button"
-                          onClick={() => setLoginShowPassword(!loginShowPassword)}
-                          style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "14px", color: "var(--text-muted)" }}
+                          onClick={() => {
+                            setRegisteredProfileId(null);
+                            setIsRegistering(false);
+                            setLoginError(null);
+                          }}
+                          className="btn-primary"
+                          style={{ width: "100%", padding: "10px" }}
                         >
-                          {loginShowPassword ? "👁️" : "🙈"}
+                          Proceed to Login
                         </button>
                       </div>
+                    ) : !isRegistering ? (
+                      showLoginOtp ? (
+                        <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                          <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0, textAlign: "center" }}>
+                            Verify OTP to Login
+                          </h3>
+                          {loginOtpError && (
+                            <div className="alert-danger-box" style={{ padding: "10px", borderRadius: "6px", backgroundColor: "rgba(198, 40, 40, 0.05)", border: "1px solid var(--error)", fontSize: "11px", color: "var(--text-main)" }}>
+                              {loginOtpError}
+                            </div>
+                          )}
+                          <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setLoginOtpError(null);
+                            try {
+                              const res = await fetch(`${API_BASE}/api/auth/login-otp/verify`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email: loginOtpEmail, code: loginOtpCode })
+                              });
+                              const data = await res.json();
+                              if (!res.ok) {
+                                setLoginOtpError(data.error || "Verification failed.");
+                              } else {
+                                setCurrentUser(data.user);
+                                localStorage.setItem("devsetu_user", JSON.stringify(data.user));
+                                setIsLoggedIn(true);
+                                setShowLoginOtp(false);
+                                setLoginOtpCode("");
+                                setLoginOtpEmail("");
+                                setLoginError(null);
+                              }
+                            } catch (err) {
+                              setLoginOtpError("Network error occurred.");
+                            }
+                          }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: "1.4" }}>
+                              We have sent a 6-digit OTP code to <strong>{loginOtpEmail}</strong>. Enter it below to proceed.
+                            </p>
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">🔑</span>
+                              <input 
+                                type="text" 
+                                required 
+                                maxLength={6}
+                                placeholder="6-Digit Code" 
+                                className="minimal-input"
+                                value={loginOtpCode}
+                                onChange={(e) => setLoginOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                                style={{ fontFamily: "monospace", letterSpacing: "4px", fontSize: "14px", textAlign: "center" }}
+                              />
+                            </div>
+                            <button type="submit" className="btn-primary" style={{ width: "100%", padding: "10px" }}>
+                              Verify & Log In
+                            </button>
+                            <button type="button" onClick={() => { setShowLoginOtp(false); setLoginError(null); }} className="btn-secondary" style={{ width: "100%", padding: "10px" }}>
+                              Cancel
+                            </button>
+                          </form>
+                        </div>
+                      ) : (
+                        <>
+                        <div className="login-tabs">
+                          <button 
+                            type="button"
+                            onClick={() => { setLoginFormType("email"); setLoginError(null); }}
+                            className={`login-tab-btn ${loginFormType === "email" ? "active" : ""}`}
+                          >
+                            Email
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => { setLoginFormType("mobile"); setLoginError(null); }}
+                            className={`login-tab-btn ${loginFormType === "mobile" ? "active" : ""}`}
+                          >
+                            Mobile
+                          </button>
+                        </div>
 
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", marginTop: "4px" }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-                          <input type="checkbox" style={{ accentColor: "var(--temple-gold)" }} />
-                          <span>{localTranslations[language]?.loginRemember || localTranslations.en.loginRemember}</span>
-                        </label>
-                        <a href="#" style={{ color: "var(--temple-gold)", textDecoration: "none", fontWeight: "700" }} onClick={(e) => e.preventDefault()}>
-                          {localTranslations[language]?.loginForgot || localTranslations.en.loginForgot}
-                        </a>
-                      </div>
+                        {loginError && (
+                          <div className="alert-danger-box" style={{
+                            padding: "12px",
+                            borderRadius: "8px",
+                            backgroundColor: "rgba(198, 40, 40, 0.05)",
+                            border: "1px solid var(--error)",
+                            fontSize: "12px",
+                            color: "var(--text-main)",
+                            marginBottom: "16px",
+                            lineHeight: "1.4"
+                          }}>
+                            {loginError.type === "pending" ? (
+                              <>
+                                <strong style={{ color: "var(--error)" }}>Your account is under verification.</strong>
+                                <div style={{ marginTop: "6px", fontFamily: "monospace", fontSize: "11px" }}>
+                                  Profile ID: <span style={{ color: "var(--temple-gold)", fontWeight: "800" }}>{loginError.profileId}</span>
+                                </div>
+                                <div style={{ marginTop: "4px" }}>Please wait for admin approval.</div>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const payload = loginFormType === "email" ? { email: loginEmail } : { phone: loginPhone };
+                                      const res = await fetch(`${API_BASE}/api/auth/login-otp/request`, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify(payload)
+                                      });
+                                      const data = await res.json();
+                                      if (!res.ok) {
+                                        setLoginError({ type: "general", message: data.error || "Failed to send login OTP." });
+                                      } else {
+                                        setLoginOtpEmail(data.email);
+                                        setShowLoginOtp(true);
+                                        setLoginOtpError(null);
+                                        setLoginOtpCode("");
+                                      }
+                                    } catch (err) {
+                                      setLoginError({ type: "general", message: "Network error occurred." });
+                                    }
+                                  }}
+                                  className="btn-primary"
+                                  style={{ marginTop: "10px", width: "100%", padding: "8px 12px", fontSize: "12px" }}
+                                >
+                                  Verify via OTP to Auto-Approve & Log In
+                                </button>
+                              </>
+                            ) : (
+                              loginError.message
+                            )}
+                          </div>
+                        )}
 
-                      <button 
-                        type="submit" 
-                        className="btn-primary" 
-                        style={{ width: "100%", marginTop: "12px", padding: "12px" }}
-                      >
-                        {localTranslations[language]?.loginSignIn || localTranslations.en.loginSignIn}
-                      </button>
-                    </form>
+                        <form onSubmit={handleLoginSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                          {loginFormType === "email" ? (
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">📧</span>
+                              <input 
+                                type="email" 
+                                required
+                                placeholder="Email Address" 
+                                className="minimal-input"
+                                value={loginEmail}
+                                onChange={(e) => setLoginEmail(e.target.value)}
+                              />
+                            </div>
+                          ) : (
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">📱</span>
+                              <input 
+                                type="tel" 
+                                required
+                                placeholder="Mobile Number" 
+                                className="minimal-input"
+                                value={loginPhone}
+                                onChange={(e) => setLoginPhone(e.target.value)}
+                              />
+                            </div>
+                          )}
 
-                    <div style={{ textAlign: "center", marginTop: "20px", fontSize: "11px", color: "var(--text-muted)" }}>
-                      {localTranslations[language]?.loginSignUpPrompt || localTranslations.en.loginSignUpPrompt}
-                      <a href="#" style={{ color: "var(--primary-brown)", fontWeight: "800", textDecoration: "none" }} onClick={(e) => e.preventDefault()}>
-                        {localTranslations[language]?.loginSignUp || localTranslations.en.loginSignUp}
-                      </a>
-                    </div>
+                          <div className="minimal-input-wrapper">
+                            <span className="minimal-input-icon">🔒</span>
+                            <input 
+                              type={loginShowPassword ? "text" : "password"} 
+                              required
+                              placeholder="Password" 
+                              className="minimal-input"
+                              value={loginPassword}
+                              onChange={(e) => setLoginPassword(e.target.value)}
+                              style={{ paddingRight: "36px" }}
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => setLoginShowPassword(!loginShowPassword)}
+                              style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "14px", color: "var(--text-muted)" }}
+                            >
+                              {loginShowPassword ? "👁️" : "🙈"}
+                            </button>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", marginTop: "4px" }}>
+                            <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                              <input type="checkbox" style={{ accentColor: "var(--temple-gold)" }} />
+                              <span>{localTranslations[language]?.loginRemember || localTranslations.en.loginRemember}</span>
+                            </label>
+                            <a href="#" style={{ color: "var(--temple-gold)", textDecoration: "none", fontWeight: "700" }} onClick={(e) => { e.preventDefault(); setForgotStep(1); setForgotError(null); setForgotEmail(loginEmail); }}>
+                              {localTranslations[language]?.loginForgot || localTranslations.en.loginForgot}
+                            </a>
+                          </div>
+
+                          <button 
+                            type="submit" 
+                            className="btn-primary" 
+                            style={{ width: "100%", marginTop: "12px", padding: "12px" }}
+                          >
+                            {localTranslations[language]?.loginSignIn || localTranslations.en.loginSignIn}
+                          </button>
+                        </form>
+
+                        <div style={{ textAlign: "center", marginTop: "20px", fontSize: "11px", color: "var(--text-muted)" }}>
+                          {localTranslations[language]?.loginSignUpPrompt || localTranslations.en.loginSignUpPrompt}
+                          <a href="#" style={{ color: "var(--primary-brown)", fontWeight: "800", textDecoration: "none" }} onClick={(e) => { e.preventDefault(); setIsRegistering(true); }}>
+                            {localTranslations[language]?.loginSignUp || localTranslations.en.loginSignUp}
+                          </a>
+                        </div>
+                      </>
+                    )
+                  ) : (
+                      <>
+                        <h3 style={{ fontSize: "16px", fontFamily: "var(--font-heading)", textAlign: "center", marginBottom: "16px" }}>Astrologer Registration</h3>
+                        <form onSubmit={handleSignUpSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                          <div className="minimal-input-wrapper">
+                            <span className="minimal-input-icon">👤</span>
+                            <input 
+                              type="text" 
+                              required
+                              placeholder="Full Name" 
+                              className="minimal-input"
+                              value={signupName}
+                              onChange={(e) => setSignupName(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="minimal-input-wrapper">
+                            <span className="minimal-input-icon">📧</span>
+                            <input 
+                              type="email" 
+                              required
+                              placeholder="Email Address" 
+                              className="minimal-input"
+                              value={signupEmail}
+                              onChange={(e) => setSignupEmail(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="minimal-input-wrapper">
+                            <span className="minimal-input-icon">📱</span>
+                            <input 
+                              type="tel" 
+                              required
+                              placeholder="Mobile Number" 
+                              className="minimal-input"
+                              value={signupPhone}
+                              onChange={(e) => setSignupPhone(e.target.value)}
+                            />
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label">State</label>
+                              <select 
+                                value={signupState}
+                                onChange={(e) => setSignupState(e.target.value)}
+                                className="form-select"
+                                style={{ width: "100%", padding: "8px 12px", fontSize: "12px" }}
+                              >
+                                <option value="Maharashtra">Maharashtra</option>
+                                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                <option value="Madhya Pradesh">Madhya Pradesh</option>
+                                <option value="Uttarakhand">Uttarakhand</option>
+                                <option value="Karnataka">Karnataka</option>
+                              </select>
+                            </div>
+
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label">City</label>
+                              <input 
+                                type="text"
+                                required
+                                placeholder="e.g. Pune"
+                                className="form-input"
+                                value={signupCity}
+                                onChange={(e) => setSignupCity(e.target.value)}
+                                style={{ padding: "8px 12px", fontSize: "12px" }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label">Years of Experience</label>
+                            <select 
+                              value={signupExperience}
+                              onChange={(e) => setSignupExperience(e.target.value)}
+                              className="form-select"
+                              style={{ width: "100%", padding: "8px 12px", fontSize: "12px" }}
+                            >
+                              <option value="3 Years">3 Years</option>
+                              <option value="5 Years">5 Years</option>
+                              <option value="7 Years">7 Years</option>
+                              <option value="10 Years">10 Years</option>
+                              <option value="15+ Years">15+ Years</option>
+                            </select>
+                          </div>
+
+                          <div className="minimal-input-wrapper">
+                            <span className="minimal-input-icon">🔒</span>
+                            <input 
+                              type="password" 
+                              required
+                              placeholder="Password" 
+                              className="minimal-input"
+                              value={signupPassword}
+                              onChange={(e) => setSignupPassword(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="minimal-input-wrapper">
+                            <span className="minimal-input-icon">🔒</span>
+                            <input 
+                              type="password" 
+                              required
+                              placeholder="Confirm Password" 
+                              className="minimal-input"
+                              value={signupConfirmPassword}
+                              onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                            />
+                          </div>
+
+                          <button 
+                            type="submit" 
+                            className="btn-primary" 
+                            style={{ width: "100%", marginTop: "8px", padding: "12px" }}
+                          >
+                            Sign Up
+                          </button>
+                        </form>
+
+                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: "var(--text-muted)" }}>
+                          Already have an account?{" "}
+                          <a href="#" style={{ color: "var(--primary-brown)", fontWeight: "800", textDecoration: "none" }} onClick={(e) => { e.preventDefault(); setIsRegistering(false); }}>
+                            Sign In
+                          </a>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1017,8 +1734,8 @@ export default function App() {
                   <div className="phone-nav-header">
                     <img 
                       src={theme === "light" 
-                        ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDTuLVfFlIdG7O2IuP_bYErSDfHvdmJnN5o6fRLQ6eu_1osw1Wxq1CXioT-QGsiBQhD_eZZPotGJAt0b53g6We9UVwJeKJLb6Ud6lqfdemDHQUKFbGN_G4naaY9YpAxDov01slm000uHBGVzOrNXvUUw4DLnmSQUg--Jh7NUtF5fSQCCAFFqNI7CX9-Zx2BeY5lPwCcv4PDDBX-905ZMBSDFAQFEk7764LbkcgO5CxTa1zkZllh3zPQuYLA7SfJBs1Vx2P3CDOJ42jU" 
-                        : "https://lh3.googleusercontent.com/aida/AP1WRLudWhyozNFGz-MIo4RZ0tNp2UYwqek0T0spYYWhrJt-A2nr0hlPDDom-R3si0uTtFvoD1cVRfgLt9sXfYszE5_rYMe862fg3jRWtkfqyOItdd-A0_6Xi1gHXml3iMwMkQ1Gv-6YfsvHJ7as_AOhzCADb01wzl-rxbV6pfPI9ZnubSsGcZ9dp9FNNWe0OaXJoCsn8gbe71qk1qWX17re89ljSD1dn5zvid5AK6YYIA8BemgfhCySrrgSTzf9erEv-IqeiFXWD7JMgg"}
+                        ? "/devsetu_light_logo.png" 
+                        : "/devsetu_dark_logo.png"}
                       alt="DevSetu Logo" 
                       style={{ height: "26px", width: "auto" }}
                     />
@@ -1058,9 +1775,14 @@ export default function App() {
                       color: "#FFF6E9",
                       border: "1px solid var(--temple-gold)"
                     }}>
-                      <div style={{ fontSize: "12px", opacity: 0.8 }}>{t.welcome}</div>
+                      <div style={{ fontSize: "12px", opacity: 0.8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>{t.welcome}</span>
+                        <span style={{ fontSize: "10px", fontWeight: "800", opacity: 0.95, fontFamily: "monospace", letterSpacing: "0.5px" }}>
+                          ID: {currentUser?.profileId || "DEV-AST-00001"}
+                        </span>
+                      </div>
                       <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "18px", color: "var(--temple-gold)", margin: "4px 0" }}>
-                        {t.astroName}
+                        {currentUser?.name || t.astroName}
                       </h3>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", opacity: 0.9, marginTop: "6px" }}>
                         <Award size={14} color="var(--temple-gold)" />
@@ -1459,11 +2181,13 @@ export default function App() {
                                   backgroundColor: "#ffffff",
                                   position: "relative"
                                 }}>
-                                  {/* Stylized QR mockup */}
-                                  <div style={{ width: "100px", height: "100px", background: "repeating-conic-gradient(from 45deg, #2B1B12 0deg 30deg, transparent 0deg 60deg)", opacity: 0.85 }}></div>
-                                  <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--primary-brown)", position: "absolute", bottom: "4px", backgroundColor: "#fff", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-color)" }}>
-                                    {t.qrArea}
-                                  </span>
+                                  {/* Stylized QR mockup replaced by user provided PhonePe QR code */}
+                                  <img 
+                                    src="/payment_qr_2.jpeg" 
+                                    onError={(e) => { e.target.src = "/payment_qr_1.jpeg"; }}
+                                    alt="Payment QR Code" 
+                                    style={{ width: "120px", height: "120px", objectFit: "contain", borderRadius: "8px" }}
+                                  />
                                 </div>
                                 <div style={{ fontSize: "11px", color: "var(--text-main)", fontWeight: "700" }}>
                                   Scan to Pay: ₹{(createdBooking.amount * 0.2).toLocaleString()}
@@ -1586,7 +2310,7 @@ export default function App() {
 
                           <div className="premium-card">
                             <div style={{ fontSize: "12px", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px", marginBottom: "8px" }}>
-                              <strong>{booking.id}</strong> | {booking.packageName}
+                              <strong>{booking.id}</strong> | {booking.packageName} | ID: {booking.astrologerProfileId || currentUser?.profileId || "DEV-AST-00001"}
                             </div>
                             <div style={{ fontSize: "11px", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "4px" }}>
                               <div><strong>Client:</strong> {booking.clientName} ({booking.clientMobile})</div>
@@ -1675,7 +2399,7 @@ export default function App() {
                               >
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                   <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--text-muted)" }}>
-                                    {t.bookingId} {booking.id}
+                                    {t.bookingId} {booking.id} | Astrologer ID: {booking.astrologerProfileId || currentUser?.profileId || "DEV-AST-00001"}
                                   </span>
                                   <span className={`status-badge ${booking.status}`}>{booking.status}</span>
                                 </div>
@@ -1836,7 +2560,7 @@ export default function App() {
                               <div>
                                 <span className="ticket-id">{ticket.id}</span>
                                 <div style={{ fontSize: "11px", fontWeight: "700", marginTop: "2px" }}>{ticket.subject}</div>
-                                <div className="ticket-meta">{ticket.category} • Updated {ticket.lastUpdate}</div>
+                                <div className="ticket-meta">{ticket.category} • Updated {ticket.lastUpdate} • ID: {currentUser?.profileId || "DEV-AST-00001"}</div>
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
                                 <span className={`status-badge ${ticket.status === "Open" ? "submitted" : "completed"}`} style={{ fontSize: "8px", padding: "2px 6px" }}>
@@ -1873,7 +2597,7 @@ export default function App() {
                         {/* Ticket Topic Banner */}
                         <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", backgroundColor: "var(--warm-cream-darker)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div>
-                            <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--temple-gold)" }}>{activeTicketId}</span>
+                            <span style={{ fontSize: "10px", fontWeight: "800", color: "var(--temple-gold)" }}>{activeTicketId} | ID: {currentUser?.profileId || "DEV-AST-00001"}</span>
                             <div style={{ fontSize: "10px", fontWeight: "700", color: "var(--text-main)", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {tickets.find(tk => tk.id === activeTicketId)?.subject}
                             </div>
@@ -1999,130 +2723,353 @@ export default function App() {
               {astroTab === "profile" && (
                 <>
                   <div className="phone-nav-header">
-                    <div className="phone-nav-title">{t.profileTitle}</div>
+                    <div className="phone-nav-title">{showSecurity ? "Security Settings" : t.profileTitle}</div>
                     <Settings size={18} color="var(--text-muted)" />
                   </div>
 
                   <div className="phone-screen-body">
-                    {/* User Summary */}
-                    <div className="premium-card" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                      <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "var(--warm-cream-darker)", display: "flex", alignItems: "center", justifycontent: "center", fontSize: "24px", border: "1px solid var(--temple-gold)" }}>
-                        👴
-                      </div>
-                      <div>
-                        <h4 style={{ fontSize: "14px", fontFamily: "var(--font-heading)" }}>Acharya Shastri</h4>
-                        <p style={{ fontSize: "9px", color: "var(--text-muted)" }}>{t.license}</p>
-                        <p style={{ fontSize: "10px", color: "var(--orange-accent)", fontWeight: "700" }}>⭐ 4.95 Rating</p>
-                      </div>
-                    </div>
+                    {showSecurity ? (
+                      /* Change Password Form View */
+                      <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                        <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "13px", color: "var(--primary-brown)", borderBottom: "1px solid var(--border-color)", paddingBottom: "6px", margin: 0 }}>
+                          Change Password
+                        </h4>
+                        
+                        {securityError && (
+                          <div className="alert-danger-box" style={{ padding: "10px", borderRadius: "6px", backgroundColor: "rgba(198, 40, 40, 0.05)", border: "1px solid var(--error)", fontSize: "11px", color: "var(--text-main)" }}>
+                            {securityError}
+                          </div>
+                        )}
 
-                    {/* Quick Setting Options */}
-                    <div className="premium-card" style={{ padding: 0 }}>
-                      
-                      {/* Language setting option */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
-                          <Globe size={16} />
-                          <span>{t.language}</span>
+                        {securitySuccess && (
+                          <div style={{ padding: "10px", borderRadius: "6px", backgroundColor: "rgba(46, 125, 50, 0.05)", border: "1px solid var(--success)", fontSize: "11px", color: "var(--success)" }}>
+                            Password updated successfully. Logging out...
+                          </div>
+                        )}
+
+                        <form onSubmit={async (e) => {
+                          e.preventDefault();
+                          setSecurityError(null);
+                          if (newPassword !== confirmPassword) {
+                            setSecurityError("New passwords do not match.");
+                            return;
+                          }
+                          try {
+                            const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ email: currentUser.email, currentPassword, newPassword })
+                            });
+                            const data = await res.json();
+                            if (!res.ok) {
+                              setSecurityError(data.error || "Failed to change password.");
+                            } else {
+                              setSecuritySuccess(true);
+                              setTimeout(() => {
+                                setCurrentUser(null);
+                                localStorage.removeItem("devsetu_user");
+                                setIsLoggedIn(false);
+                                setShowSecurity(false);
+                              }, 2000);
+                            }
+                          } catch (err) {
+                            setSecurityError("Network error occurred.");
+                          }
+                        }} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label">Current Password *</label>
+                            <input 
+                              type="password" 
+                              required 
+                              className="form-input" 
+                              value={currentPassword}
+                              onChange={(e) => setCurrentPassword(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label">New Password *</label>
+                            <input 
+                              type="password" 
+                              required 
+                              className="form-input" 
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label">Confirm New Password *</label>
+                            <input 
+                              type="password" 
+                              required 
+                              className="form-input" 
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                            />
+                          </div>
+
+                          <div style={{
+                            fontSize: "10px",
+                            backgroundColor: "var(--warm-cream-darker)",
+                            padding: "10px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--border-color)",
+                            lineHeight: "1.4"
+                          }}>
+                            <strong style={{ color: "var(--primary-brown)" }}>Password Strength Rules:</strong>
+                            <ul style={{ margin: "4px 0 0 12px", padding: 0 }}>
+                              <li>At least 8 characters</li>
+                              <li>Uppercase & lowercase letters</li>
+                              <li>At least 1 number</li>
+                              <li>At least 1 special character</li>
+                            </ul>
+                          </div>
+
+                          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+                            <button type="button" onClick={() => setShowSecurity(false)} className="btn-secondary" style={{ flex: 1 }}>
+                              Back
+                            </button>
+                            <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+                              Save Password
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    ) : (
+                      <>
+                        {/* User Summary Header */}
+                        <div className="premium-card" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                          <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "var(--warm-cream-darker)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", border: "1px solid var(--temple-gold)" }}>
+                            🧘
+                          </div>
+                          <div>
+                            <h4 style={{ fontSize: "14px", fontFamily: "var(--font-heading)" }}>{currentUser?.name || "Acharya Shastri"}</h4>
+                            <p style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "monospace" }}>ID: {currentUser?.profileId || "DEV-AST-00001"}</p>
+                            <p style={{ fontSize: "10px", color: "var(--orange-accent)", fontWeight: "700" }}>⭐ 4.95 Rating (Platinum)</p>
+                          </div>
                         </div>
-                        <select 
-                          value={language}
-                          onChange={(e) => setLanguage(e.target.value)}
-                          className="form-select"
-                          style={{ padding: "2px 8px", fontSize: "11px" }}
+
+                        {/* Personal Information Card */}
+                        <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "12px", color: "var(--primary-brown)", borderBottom: "1px solid var(--border-color)", paddingBottom: "6px", margin: 0 }}>
+                            Personal Information
+                          </h4>
+                          <div style={{ fontSize: "11px", display: "grid", gridTemplateColumns: "1fr 2fr", gap: "4px" }}>
+                            <span style={{ fontWeight: "700" }}>Email:</span>
+                            <span>{currentUser?.email || "acharya.shastri@devsetu.com"}</span>
+                            
+                            <span style={{ fontWeight: "700" }}>Mobile:</span>
+                            <span>{currentUser?.phone || "+91 91234 56789"}</span>
+                          </div>
+                        </div>
+
+                        {/* Professional Information Card */}
+                        <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "12px", color: "var(--primary-brown)", borderBottom: "1px solid var(--border-color)", paddingBottom: "6px", margin: 0 }}>
+                            Professional Information
+                          </h4>
+                          <div style={{ fontSize: "11px", display: "grid", gridTemplateColumns: "1fr 2fr", gap: "4px" }}>
+                            <span style={{ fontWeight: "700" }}>State:</span>
+                            <span>{currentUser?.state || "Uttar Pradesh"}</span>
+                            
+                            <span style={{ fontWeight: "700" }}>City:</span>
+                            <span>{currentUser?.city || "Varanasi"}</span>
+                            
+                            <span style={{ fontWeight: "700" }}>Experience:</span>
+                            <span>{currentUser?.experience || "15 Years"}</span>
+                            
+                            <span style={{ fontWeight: "700" }}>Role:</span>
+                            <span>Astrologer (Verified)</span>
+                          </div>
+                        </div>
+
+                        {/* Quick Setting Options */}
+                        <div className="premium-card" style={{ padding: 0 }}>
+                          
+                          {/* Security Settings Toggle */}
+                          <div 
+                            onClick={() => { setShowSecurity(true); setSecurityError(null); setSecuritySuccess(false); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)", cursor: "pointer" }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                              <span style={{ fontSize: "16px" }}>🔒</span>
+                              <span>Security Settings (Change Password)</span>
+                            </div>
+                            <ChevronRight size={16} color="var(--text-muted)" />
+                          </div>
+
+                          {/* Language setting option */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                              <Globe size={16} />
+                              <span>{t.language}</span>
+                            </div>
+                            <select 
+                              value={language}
+                              onChange={(e) => setLanguage(e.target.value)}
+                              className="form-select"
+                              style={{ padding: "2px 8px", fontSize: "11px" }}
+                            >
+                              <option value="en">English</option>
+                              <option value="hi">हिंदी</option>
+                              <option value="mr">मराठी</option>
+                            </select>
+                          </div>
+
+                          {/* Theme Toggle option */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                              {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+                              <span>{t.theme}</span>
+                            </div>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button 
+                                type="button"
+                                onClick={() => setTheme("light")} 
+                                style={{ 
+                                  fontSize: "10px", 
+                                  padding: "4px 8px", 
+                                  border: "1px solid var(--border-color)", 
+                                  borderRadius: "4px",
+                                  backgroundColor: theme === "light" ? "var(--primary-brown)" : "transparent",
+                                  color: theme === "light" ? "var(--warm-cream)" : "var(--text-main)",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Light
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => setTheme("dark")} 
+                                style={{ 
+                                  fontSize: "10px", 
+                                  padding: "4px 8px", 
+                                  border: "1px solid var(--border-color)", 
+                                  borderRadius: "4px",
+                                  backgroundColor: theme === "dark" ? "var(--primary-brown)" : "transparent",
+                                  color: theme === "dark" ? "var(--warm-cream)" : "var(--text-main)",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Dark
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Accessibility Mode Toggle */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                              <span style={{ fontSize: "16px" }}>♿</span>
+                              <span>{localTranslations[language]?.accessibilityToggle || localTranslations.en.accessibilityToggle}</span>
+                            </div>
+                            <label className="toggle-switch">
+                              <input 
+                                type="checkbox" 
+                                checked={isAccessibilityMode}
+                                onChange={(e) => setIsAccessibilityMode(e.target.checked)}
+                              />
+                              <span className="slider"></span>
+                            </label>
+                          </div>
+
+                          {/* Enable Alerts option */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                              <Bell size={16} />
+                              <span>Enable Alerts (Email & SMS)</span>
+                            </div>
+                            <label className="toggle-switch">
+                              <input 
+                                type="checkbox" 
+                                defaultChecked
+                              />
+                              <span className="slider"></span>
+                            </label>
+                          </div>
+
+                          {/* Play Store Release Readiness - About & Version */}
+                          <div 
+                            onClick={() => setShowAboutModal(true)}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)", cursor: "pointer" }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                              <span style={{ fontSize: "16px" }}>ℹ️</span>
+                              <span>About & App Version</span>
+                            </div>
+                            <span style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: "600" }}>v1.0.0</span>
+                          </div>
+
+                          {/* Play Store Release Readiness - Privacy Policy */}
+                          <div 
+                            onClick={() => setShowPrivacyModal(true)}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)", cursor: "pointer" }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                              <span style={{ fontSize: "16px" }}>🛡️</span>
+                              <span>Privacy Policy</span>
+                            </div>
+                            <ChevronRight size={16} color="var(--text-muted)" />
+                          </div>
+
+                          {/* Play Store Release Readiness - Terms & Conditions */}
+                          <div 
+                            onClick={() => setShowTermsModal(true)}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)", cursor: "pointer" }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                              <span style={{ fontSize: "16px" }}>📄</span>
+                              <span>Terms & Conditions</span>
+                            </div>
+                            <ChevronRight size={16} color="var(--text-muted)" />
+                          </div>
+
+                          {/* Play Store Release Readiness - Contact Information */}
+                          <div 
+                            onClick={() => setShowContactModal(true)}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)", cursor: "pointer" }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                              <span style={{ fontSize: "16px" }}>📞</span>
+                              <span>Contact Information</span>
+                            </div>
+                            <ChevronRight size={16} color="var(--text-muted)" />
+                          </div>
+
+                          {/* Notification Preferences */}
+                          <div style={{ padding: "12px 16px" }}>
+                            <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", marginBottom: "8px" }}>
+                              {t.notifPref}
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "11px" }}>
+                              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                                <input type="checkbox" defaultChecked />
+                                <span>{t.notifSMS}</span>
+                              </label>
+                              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+                                <input type="checkbox" defaultChecked />
+                                <span>{t.notifApp}</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button 
+                          type="button"
+                          className="btn-secondary" 
+                          style={{ color: "var(--error)", borderColor: "rgba(198,40,40,0.2)", width: "100%" }}
+                          onClick={() => {
+                            setCurrentUser(null);
+                            localStorage.removeItem("devsetu_user");
+                            setIsLoggedIn(false);
+                            setIsSplash(false);
+                          }}
                         >
-                          <option value="en">English</option>
-                          <option value="hi">हिंदी</option>
-                          <option value="mr">मराठी</option>
-                        </select>
-                      </div>
-
-                      {/* Theme Toggle option */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
-                          {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
-                          <span>{t.theme}</span>
-                        </div>
-                        <div style={{ display: "flex", gap: "6px" }}>
-                          <button 
-                            type="button"
-                            onClick={() => setTheme("light")} 
-                            style={{ 
-                              fontSize: "10px", 
-                              padding: "4px 8px", 
-                              border: "1px solid var(--border-color)", 
-                              borderRadius: "4px",
-                              backgroundColor: theme === "light" ? "var(--primary-brown)" : "transparent",
-                              color: theme === "light" ? "var(--warm-cream)" : "var(--text-main)",
-                              cursor: "pointer"
-                            }}
-                          >
-                            Light
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setTheme("dark")} 
-                            style={{ 
-                              fontSize: "10px", 
-                              padding: "4px 8px", 
-                              border: "1px solid var(--border-color)", 
-                              borderRadius: "4px",
-                              backgroundColor: theme === "dark" ? "var(--primary-brown)" : "transparent",
-                              color: theme === "dark" ? "var(--warm-cream)" : "var(--text-main)",
-                              cursor: "pointer"
-                            }}
-                          >
-                            Dark
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Accessibility Mode Toggle */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid var(--border-color)" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
-                          <span style={{ fontSize: "16px" }}>♿</span>
-                          <span>{localTranslations[language]?.accessibilityToggle || localTranslations.en.accessibilityToggle}</span>
-                        </div>
-                        <label className="toggle-switch">
-                          <input 
-                            type="checkbox" 
-                            checked={isAccessibilityMode}
-                            onChange={(e) => setIsAccessibilityMode(e.target.checked)}
-                          />
-                          <span className="slider"></span>
-                        </label>
-                      </div>
-
-                      {/* Notification Preferences */}
-                      <div style={{ padding: "12px 16px" }}>
-                        <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", marginBottom: "8px" }}>
-                          {t.notifPref}
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "11px" }}>
-                          <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                            <input type="checkbox" defaultChecked />
-                            <span>{t.notifSMS}</span>
-                          </label>
-                          <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                            <input type="checkbox" defaultChecked />
-                            <span>{t.notifApp}</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button 
-                      type="button"
-                      className="btn-secondary" 
-                      style={{ color: "var(--error)", borderColor: "rgba(198,40,40,0.2)", width: "100%" }}
-                      onClick={() => {
-                        setIsLoggedIn(false);
-                        setIsSplash(false);
-                      }}
-                    >
-                      <LogOut size={16} />
-                      {t.logout}
-                    </button>
+                          <LogOut size={16} />
+                          {t.logout}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -2175,7 +3122,7 @@ export default function App() {
                   <div className="bg-drift-pattern" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}></div>
                   <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center", position: "relative", zIndex: 2, padding: "20px" }}>
                     <img 
-                      src="https://lh3.googleusercontent.com/aida/AP1WRLudWhyozNFGz-MIo4RZ0tNp2UYwqek0T0spYYWhrJt-A2nr0hlPDDom-R3si0uTtFvoD1cVRfgLt9sXfYszE5_rYMe862fg3jRWtkfqyOItdd-A0_6Xi1gHXml3iMwMkQ1Gv-6YfsvHJ7as_AOhzCADb01wzl-rxbV6pfPI9ZnubSsGcZ9dp9FNNWe0OaXJoCsn8gbe71qk1qWX17re89ljSD1dn5zvid5AK6YYIA8BemgfhCySrrgSTzf9erEv-IqeiFXWD7JMgg"
+                      src="/devsetu_dark_logo.png"
                       alt="DevSetu Logo" 
                       style={{ maxWidth: "160px", height: "auto", objectFit: "contain" }}
                     />
@@ -2188,7 +3135,35 @@ export default function App() {
                 </div>
                 
                 {/* Right Form */}
-                <form onSubmit={(e) => { e.preventDefault(); setIsAdminLoggedIn(true); }} style={{ padding: "40px", width: "60%", display: "flex", flexDirection: "column", justifyContent: "center", gap: "20px" }}>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const payload = {
+                      loginFormType: "email",
+                      email: adminUsername,
+                      password: adminPassword
+                    };
+                    const res = await fetch(`${API_BASE}/api/auth/login`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      alert(data.error || "Admin authentication failed.");
+                      return;
+                    }
+                    if (data.user.role !== "admin") {
+                      alert("Access denied. Admin privileges required.");
+                      return;
+                    }
+                    setAdminUser(data.user);
+                    localStorage.setItem("devsetu_admin_user", JSON.stringify(data.user));
+                    setIsAdminLoggedIn(true);
+                  } catch (err) {
+                    alert("Network error during admin authentication.");
+                  }
+                }} style={{ padding: "40px", width: "60%", display: "flex", flexDirection: "column", justifyContent: "center", gap: "20px" }}>
                   <div>
                     <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "22px", color: "var(--text-main)", marginBottom: "4px" }}>
                       {localTranslations[language]?.adminSecureLogin || localTranslations.en.adminSecureLogin}
@@ -2235,7 +3210,12 @@ export default function App() {
                       <input type="checkbox" style={{ accentColor: "var(--temple-gold)" }} />
                       <span>Remember me</span>
                     </label>
-                    <a href="#" style={{ color: "var(--temple-gold)", textDecoration: "none", fontWeight: "700" }} onClick={(e) => e.preventDefault()}>
+                    <a href="#" style={{ color: "var(--temple-gold)", textDecoration: "none", fontWeight: "700" }} onClick={(e) => {
+                      e.preventDefault();
+                      setSimulatorView("mobile");
+                      setForgotStep(1);
+                      setForgotEmail("devsetuconnect@gmail.com");
+                    }}>
                       Forgot password?
                     </a>
                   </div>
@@ -2266,8 +3246,8 @@ export default function App() {
                 <div className="admin-nav-title">
                   <img 
                     src={theme === "light" 
-                      ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDTuLVfFlIdG7O2IuP_bYErSDfHvdmJnN5o6fRLQ6eu_1osw1Wxq1CXioT-QGsiBQhD_eZZPotGJAt0b53g6We9UVwJeKJLb6Ud6lqfdemDHQUKFbGN_G4naaY9YpAxDov01slm000uHBGVzOrNXvUUw4DLnmSQUg--Jh7NUtF5fSQCCAFFqNI7CX9-Zx2BeY5lPwCcv4PDDBX-905ZMBSDFAQFEk7764LbkcgO5CxTa1zkZllh3zPQuYLA7SfJBs1Vx2P3CDOJ42jU" 
-                      : "https://lh3.googleusercontent.com/aida/AP1WRLudWhyozNFGz-MIo4RZ0tNp2UYwqek0T0spYYWhrJt-A2nr0hlPDDom-R3si0uTtFvoD1cVRfgLt9sXfYszE5_rYMe862fg3jRWtkfqyOItdd-A0_6Xi1gHXml3iMwMkQ1Gv-6YfsvHJ7as_AOhzCADb01wzl-rxbV6pfPI9ZnubSsGcZ9dp9FNNWe0OaXJoCsn8gbe71qk1qWX17re89ljSD1dn5zvid5AK6YYIA8BemgfhCySrrgSTzf9erEv-IqeiFXWD7JMgg"}
+                      ? "/devsetu_light_logo.png" 
+                      : "/devsetu_dark_logo.png"}
                     alt="DevSetu Logo" 
                     style={{ height: "30px", width: "auto" }}
                   />
@@ -2282,15 +3262,37 @@ export default function App() {
                       <button 
                         type="button"
                         onClick={() => {
+                          setAdminUser(null);
+                          localStorage.removeItem("devsetu_admin_user");
                           setIsAdminLoggedIn(false);
                         }}
                         style={{ background: "none", border: "none", color: "var(--error)", fontSize: "9px", fontWeight: "700", cursor: "pointer", padding: 0 }}
                       >
                         Log Out
                       </button>
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>|</span>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setShowAdminSecurityModal(true);
+                          setAdminSecurityError(null);
+                          setAdminCurrentPassword("");
+                          setAdminNewPassword("");
+                          setAdminConfirmPassword("");
+                        }}
+                        style={{ background: "none", border: "none", color: "var(--primary-brown)", fontSize: "9px", fontWeight: "700", cursor: "pointer", padding: 0 }}
+                      >
+                        Change Password
+                      </button>
                     </div>
                   </div>
-                  <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "var(--primary-brown)", display: "flex", alignItems: "center", justifycontent: "center", color: "var(--temple-gold)" }}>
+                  <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "var(--primary-brown)", display: "flex", alignItems: "center", justifycontent: "center", color: "var(--temple-gold)", cursor: "pointer" }} onClick={() => {
+                    setShowAdminSecurityModal(true);
+                    setAdminSecurityError(null);
+                    setAdminCurrentPassword("");
+                    setAdminNewPassword("");
+                    setAdminConfirmPassword("");
+                  }}>
                     ⚙️
                   </div>
                 </div>
@@ -2302,8 +3304,8 @@ export default function App() {
               <div style={{ padding: "0 24px 16px", borderBottom: "1px solid var(--border-color)", marginBottom: "16px" }}>
                 <img 
                   src={theme === "light" 
-                    ? "https://lh3.googleusercontent.com/aida-public/AB6AXuDTuLVfFlIdG7O2IuP_bYErSDfHvdmJnN5o6fRLQ6eu_1osw1Wxq1CXioT-QGsiBQhD_eZZPotGJAt0b53g6We9UVwJeKJLb6Ud6lqfdemDHQUKFbGN_G4naaY9YpAxDov01slm000uHBGVzOrNXvUUw4DLnmSQUg--Jh7NUtF5fSQCCAFFqNI7CX9-Zx2BeY5lPwCcv4PDDBX-905ZMBSDFAQFEk7764LbkcgO5CxTa1zkZllh3zPQuYLA7SfJBs1Vx2P3CDOJ42jU" 
-                    : "https://lh3.googleusercontent.com/aida/AP1WRLudWhyozNFGz-MIo4RZ0tNp2UYwqek0T0spYYWhrJt-A2nr0hlPDDom-R3si0uTtFvoD1cVRfgLt9sXfYszE5_rYMe862fg3jRWtkfqyOItdd-A0_6Xi1gHXml3iMwMkQ1Gv-6YfsvHJ7as_AOhzCADb01wzl-rxbV6pfPI9ZnubSsGcZ9dp9FNNWe0OaXJoCsn8gbe71qk1qWX17re89ljSD1dn5zvid5AK6YYIA8BemgfhCySrrgSTzf9erEv-IqeiFXWD7JMgg"}
+                    ? "/devsetu_light_logo.png" 
+                    : "/devsetu_dark_logo.png"}
                   alt="DevSetu Logo" 
                   style={{ width: "100%", height: "auto", objectFit: "contain", maxHeight: "40px" }}
                 />
@@ -2572,8 +3574,68 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Pending Approvals Table Section */}
+                  {astrologersList.filter(u => u.accountStatus === "pending").length > 0 && (
+                    <div className="chart-container-box" style={{ padding: "20px" }}>
+                      <h4 className="chart-title" style={{ color: "var(--warning)", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        ⚠️ Pending Registrations Verification Queue
+                      </h4>
+                      <div className="admin-table-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Profile ID</th>
+                              <th>Name</th>
+                              <th>Mobile</th>
+                              <th>Email</th>
+                              <th>State / City</th>
+                              <th>Status</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {astrologersList.filter(u => u.accountStatus === "pending").map(u => (
+                              <tr key={u.id}>
+                                <td><strong style={{ fontFamily: "monospace" }}>{u.id}</strong></td>
+                                <td>{u.name}</td>
+                                <td>{u.phone}</td>
+                                <td>{u.email}</td>
+                                <td>{u.location}</td>
+                                <td>
+                                  <span className="status-badge submitted" style={{ fontSize: "9px" }}>Pending Verification</span>
+                                </td>
+                                <td>
+                                  <div style={{ display: "flex", gap: "6px" }}>
+                                    <button 
+                                      onClick={() => handleAdminUpdateUserStatus(u.email, "approved")}
+                                      className="btn-primary" 
+                                      style={{ padding: "6px 12px", fontSize: "11px", backgroundColor: "var(--success)", borderColor: "var(--success)", color: "white" }}
+                                    >
+                                      Approve
+                                    </button>
+                                    <button 
+                                      onClick={() => handleAdminUpdateUserStatus(u.email, "rejected")}
+                                      className="btn-secondary" 
+                                      style={{ padding: "6px 12px", fontSize: "11px", color: "var(--error)", borderColor: "rgba(198,40,40,0.2)" }}
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px" }}>
+                    <h4 className="chart-title">Active Astrologer Network</h4>
+                  </div>
+
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
-                    {mockAstrologers.map(astro => (
+                    {astrologersList.filter(u => u.accountStatus === "approved").map(astro => (
                       <div key={astro.id} className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "12px", backgroundColor: "var(--bg-card)" }}>
                         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                           <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: "var(--warm-cream-darker)", display: "flex", alignItems: "center", justifycontent: "center", fontSize: "24px" }}>
@@ -2595,7 +3657,7 @@ export default function App() {
                             <div style={{ color: "var(--text-muted)", fontSize: "9px" }}>Experience</div>
                           </div>
                           <div>
-                            <strong>{bookings.filter(b => b.astrologerName === astro.name).length + astro.totalBookings}</strong>
+                            <strong>{bookings.filter(b => b.astrologerName === astro.name).length + (astro.totalBookings || 0)}</strong>
                             <div style={{ color: "var(--text-muted)", fontSize: "9px" }}>Bookings</div>
                           </div>
                         </div>
@@ -2840,7 +3902,7 @@ export default function App() {
                             <td><strong>{b.id}</strong></td>
                             <td>
                               <div>{b.packageName}</div>
-                              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Requested by {b.astrologerName}</span>
+                              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Requested by {b.astrologerName} ({b.astrologerProfileId || "DEV-AST-00001"})</span>
                             </td>
                             <td>
                               <strong>{b.clientName}</strong><br/>
@@ -3065,6 +4127,327 @@ export default function App() {
                       </div>
 
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {showAdminSecurityModal && (
+                <div style={{
+                  position: "fixed",
+                  inset: 0,
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 9999,
+                  backdropFilter: "blur(4px)"
+                }} className="fade-in">
+                  <div className="premium-card" style={{
+                    width: "100%",
+                    maxWidth: "400px",
+                    padding: "24px",
+                    backgroundColor: "var(--bg-card)",
+                    border: "1px solid var(--temple-gold)",
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                    position: "relative"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
+                        Admin Security Settings
+                      </h3>
+                      <button 
+                        onClick={() => setShowAdminSecurityModal(false)}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "var(--text-muted)" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {adminSecurityError && (
+                      <div style={{ padding: "10px", borderRadius: "6px", backgroundColor: "rgba(198, 40, 40, 0.05)", border: "1px solid var(--error)", fontSize: "11px", color: "var(--error)" }}>
+                        {adminSecurityError}
+                      </div>
+                    )}
+
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      setAdminSecurityError(null);
+                      if (adminNewPassword !== adminConfirmPassword) {
+                        setAdminSecurityError("Passwords do not match.");
+                        return;
+                      }
+                      try {
+                        const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email: adminUser.email, currentPassword: adminCurrentPassword, newPassword: adminNewPassword })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) {
+                          setAdminSecurityError(data.error || "Failed to change admin password.");
+                        } else {
+                          // Change successful, reload session
+                          alert("Admin password changed successfully. Logging out...");
+                          setAdminUser(null);
+                          localStorage.removeItem("devsetu_admin_user");
+                          setIsAdminLoggedIn(false);
+                          setShowAdminSecurityModal(false);
+                        }
+                      } catch (err) {
+                        setAdminSecurityError("Network error occurred.");
+                      }
+                    }} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Current Password *</label>
+                        <input 
+                          type="password" 
+                          required 
+                          className="form-input" 
+                          value={adminCurrentPassword}
+                          onChange={(e) => setAdminCurrentPassword(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">New Password *</label>
+                        <input 
+                          type="password" 
+                          required 
+                          className="form-input" 
+                          value={adminNewPassword}
+                          onChange={(e) => setAdminNewPassword(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Confirm New Password *</label>
+                        <input 
+                          type="password" 
+                          required 
+                          className="form-input" 
+                          value={adminConfirmPassword}
+                          onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                        />
+                      </div>
+
+                      <div style={{
+                        fontSize: "10px",
+                        backgroundColor: "var(--warm-cream-darker)",
+                        padding: "10px",
+                        borderRadius: "8px",
+                        border: "1px solid var(--border-color)",
+                        lineHeight: "1.4"
+                      }}>
+                        <strong style={{ color: "var(--primary-brown)" }}>Password Strength Rules:</strong>
+                        <ul style={{ margin: "4px 0 0 12px", padding: 0 }}>
+                          <li>At least 8 characters</li>
+                          <li>Uppercase & lowercase letters</li>
+                          <li>At least 1 number</li>
+                          <li>At least 1 special character</li>
+                        </ul>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+                        <button type="button" onClick={() => setShowAdminSecurityModal(false)} className="btn-secondary" style={{ flex: 1 }}>
+                          Cancel
+                        </button>
+                        <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+                          Save Password
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Play Store Release Readiness Modals */}
+              {showAboutModal && (
+                <div style={{
+                  position: "fixed",
+                  inset: 0,
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 9999,
+                  backdropFilter: "blur(4px)"
+                }} className="fade-in">
+                  <div className="premium-card" style={{
+                    width: "100%",
+                    maxWidth: "400px",
+                    padding: "24px",
+                    backgroundColor: "var(--bg-card)",
+                    border: "1px solid var(--temple-gold)",
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                    position: "relative"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
+                        About DEVSETU CONNECT
+                      </h3>
+                      <button 
+                        onClick={() => setShowAboutModal(false)}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "var(--text-muted)" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-main)", lineHeight: "1.6" }}>
+                      <p><strong>App Name:</strong> DEVSETU CONNECT</p>
+                      <p><strong>App Version:</strong> v1.0.0 (Release-Ready)</p>
+                      <p><strong>Description:</strong> A premium, secure marketplace connecting verified Vedic Astrologers directly with sacred pooja rituals and clients.</p>
+                      <p><strong>Developer:</strong> DEVSETU Developer Team</p>
+                    </div>
+                    <button type="button" onClick={() => setShowAboutModal(false)} className="btn-primary" style={{ width: "100%", padding: "10px" }}>
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showPrivacyModal && (
+                <div style={{
+                  position: "fixed",
+                  inset: 0,
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 9999,
+                  backdropFilter: "blur(4px)"
+                }} className="fade-in">
+                  <div className="premium-card" style={{
+                    width: "100%",
+                    maxWidth: "420px",
+                    padding: "24px",
+                    backgroundColor: "var(--bg-card)",
+                    border: "1px solid var(--temple-gold)",
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                    position: "relative"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
+                        Privacy Policy
+                      </h3>
+                      <button 
+                        onClick={() => setShowPrivacyModal(false)}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "var(--text-muted)" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.5", maxHeight: "250px", overflowY: "auto", paddingRight: "8px" }}>
+                      <p>We respect your privacy and protect your personal information. This Privacy Policy details how we handle the collection, storage, and processing of your details.</p>
+                      <p><strong>1. Information Collection:</strong> We collect details during registration (Name, Email, Mobile Number, State, City, Experience) to verify your credentials and match you with ritual services.</p>
+                      <p><strong>2. Data Encryption:</strong> Your account password is hashed securely using high-iteration PBKDF2 cryptography with unique random salts. Plaintext passwords are never stored.</p>
+                      <p><strong>3. Third-party Sharing:</strong> We do not share your contact details, client info, or transaction screenshots with external parties. They are used exclusively for verification and support desk chats.</p>
+                    </div>
+                    <button type="button" onClick={() => setShowPrivacyModal(false)} className="btn-primary" style={{ width: "100%", padding: "10px" }}>
+                      I Accept
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showTermsModal && (
+                <div style={{
+                  position: "fixed",
+                  inset: 0,
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 9999,
+                  backdropFilter: "blur(4px)"
+                }} className="fade-in">
+                  <div className="premium-card" style={{
+                    width: "100%",
+                    maxWidth: "420px",
+                    padding: "24px",
+                    backgroundColor: "var(--bg-card)",
+                    border: "1px solid var(--temple-gold)",
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                    position: "relative"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
+                        Terms & Conditions
+                      </h3>
+                      <button 
+                        onClick={() => setShowTermsModal(false)}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "var(--text-muted)" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.5", maxHeight: "250px", overflowY: "auto", paddingRight: "8px" }}>
+                      <p>Please read these Terms & Conditions carefully before using DEVSETU CONNECT services.</p>
+                      <p><strong>1. Astrologer eligibility:</strong> By registering, you confirm that you are a qualified astrologer and will behave ethically in organizing spiritual services.</p>
+                      <p><strong>2. Pooja Booking Payments:</strong> All booking advance payments submitted with screenshots must match bank statements. Any fraudulent transaction ID upload will lead to immediate account ban.</p>
+                      <p><strong>3. Commision (Astro Fee):</strong> Commision rates are outlined for each package. The app acts as an escrow platform ensuring payouts are completed securely.</p>
+                    </div>
+                    <button type="button" onClick={() => setShowTermsModal(false)} className="btn-primary" style={{ width: "100%", padding: "10px" }}>
+                      I Agree
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showContactModal && (
+                <div style={{
+                  position: "fixed",
+                  inset: 0,
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 9999,
+                  backdropFilter: "blur(4px)"
+                }} className="fade-in">
+                  <div className="premium-card" style={{
+                    width: "100%",
+                    maxWidth: "400px",
+                    padding: "24px",
+                    backgroundColor: "var(--bg-card)",
+                    border: "1px solid var(--temple-gold)",
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                    position: "relative"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
+                        Contact Information
+                      </h3>
+                      <button 
+                        onClick={() => setShowContactModal(false)}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "var(--text-muted)" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-main)", lineHeight: "1.6" }}>
+                      <p>For immediate support regarding slot scheduling, payment approval, or app queries, reach out below:</p>
+                      <p><strong>📧 Support Email:</strong> support@devsetu.com</p>
+                      <p><strong>📞 Admin Hotline:</strong> +91 9999999999</p>
+                      <p><strong>⏰ Help Desk Hours:</strong> 9:00 AM - 6:00 PM IST (Mon-Sat)</p>
+                    </div>
+                    <button type="button" onClick={() => setShowContactModal(false)} className="btn-primary" style={{ width: "100%", padding: "10px" }}>
+                      Close
+                    </button>
                   </div>
                 </div>
               )}

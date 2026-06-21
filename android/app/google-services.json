@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "377650905841",
+    "firebase_url": "https://devsetu-c9cae-default-rtdb.firebaseio.com",
+    "project_id": "devsetu-c9cae",
+    "storage_bucket": "devsetu-c9cae.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377650905841:android:e94680d776f539a25d5f50",
+        "android_client_info": {
+          "package_name": "com.devsetu.connect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApiX1JSyhDA-6l7SQJNuqj_abr1scJ-y0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

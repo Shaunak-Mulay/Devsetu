@@ -1,0 +1,18 @@
+{
+  "name": "devsetu-backend",
+  "version": "1.0.0",
+  "description": "Backend API for DevSetu application",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "clean:db": "node clean-db.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "firebase-admin": "^14.0.0",
+    "pg": "^8.22.0"
+  }
+}
