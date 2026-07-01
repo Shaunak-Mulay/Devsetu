@@ -6,12 +6,12 @@ import { getFirestore } from 'firebase-admin/firestore';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 
-// Load environment variables
-dotenv.config();
-
 // Load directory configurations
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load environment variables specifically from the server/.env file
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 const dbPath = path.join(__dirname, 'database.json');
 const serviceAccountPath = path.join(__dirname, 'service-account.json');
 
@@ -57,10 +57,12 @@ const { salt: adminSalt, hash: adminHash } = hashPassword(adminPassword);
 const defaultData = {
   users: [
     {
+      adminId: "ADM00001",
       profileId: "DEV-ADM-00001",
       name: "System Administrator",
       email: adminEmail,
       phone: "9999999999",
+      mobile: "9999999999",
       password: adminHash,
       salt: adminSalt,
       accountStatus: "approved",
@@ -242,9 +244,11 @@ export const database = {
         const nextIds = new Set();
         
         collection.forEach(item => {
-          const docId = (key === 'users' || key === 'otps') 
-            ? item.email 
-            : (key === 'chats' ? String(item.id) : item.id);
+          const docId = (key === 'users') 
+            ? (item.email || item.phone || item.profileId)
+            : (key === 'otps')
+              ? (item.email || item.phone)
+              : (key === 'chats' ? String(item.id) : item.id);
           if (!docId) {
             console.warn(`[Database] Skipping save of item without identifier in collection ${key}:`, item);
             return;

@@ -195,11 +195,14 @@ export default function App() {
   const [signupExperience, setSignupExperience] = useState("5 Years");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [signupDistrict, setSignupDistrict] = useState("");
+  const [signupSpecialization, setSignupSpecialization] = useState("Vedic Pooja");
 
   // Admin Login States
   const [adminUsername, setAdminUsername] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminShowPassword, setAdminShowPassword] = useState(false);
+  const [adminLoginFormType, setAdminLoginFormType] = useState("email"); // email or mobile
 
   // Auto Splash Screen Timer
   useEffect(() => {
@@ -318,6 +321,27 @@ export default function App() {
   const [broadcastText, setBroadcastText] = useState("");
   const [registeredUsers, setRegisteredUsers] = useState([]);
 
+  // Admin Notification Broadcast & History States
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastBody, setBroadcastBody] = useState("");
+  const [broadcastTargetRole, setBroadcastTargetRole] = useState("astrologer");
+  const [broadcastType, setBroadcastType] = useState("admin");
+  const [adminHistory, setAdminHistory] = useState([]);
+  const [adminHistorySearch, setAdminHistorySearch] = useState("");
+  const [adminHistoryFilterStatus, setAdminHistoryFilterStatus] = useState("all");
+  const [adminHistoryFilterChannel, setAdminHistoryFilterChannel] = useState("all");
+  
+  // Notification Preferences States (Astrologer settings)
+  const [prefEmail, setPrefEmail] = useState(true);
+  const [prefPush, setPrefPush] = useState(true);
+  const [prefSms, setPrefSms] = useState(false);
+  const [prefBooking, setPrefBooking] = useState(true);
+  const [prefMembership, setPrefMembership] = useState(true);
+  const [prefChat, setPrefChat] = useState(true);
+
+  // Push Permission Dialog State
+  const [showPushPermissionModal, setShowPushPermissionModal] = useState(false);
+
   // Polling useEffect (5-second interval) to fetch from backend and sync with fallback
   useEffect(() => {
     const fetchData = async () => {
@@ -367,7 +391,7 @@ export default function App() {
       }
 
       try {
-        const notifEmail = currentUser?.email || "";
+        const notifEmail = currentUser?.email || currentUser?.phone || currentUser?.mobile || "";
         const notifUrl = notifEmail ? `${API_BASE}/api/notifications?email=${encodeURIComponent(notifEmail)}` : `${API_BASE}/api/notifications`;
         const notificationsRes = await fetch(notifUrl);
         if (notificationsRes.ok) {
@@ -378,6 +402,17 @@ export default function App() {
         }
       } catch (err) {
         console.warn("Using local notifications fallback.");
+      }
+
+      if (adminUser) {
+        try {
+          const historyRes = await fetch(`${API_BASE}/api/notifications/admin-history`);
+          if (historyRes.ok) {
+            setAdminHistory(await historyRes.json());
+          }
+        } catch (e) {
+          console.warn("Failed to check admin notifications history");
+        }
       }
 
       if (currentUser && currentUser.email) {
@@ -431,6 +466,92 @@ export default function App() {
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [currentUser]);
+
+  const registerPushToken = async (user) => {
+    try {
+      const email = user.email || user.phone;
+      const deviceToken = "FCM-TOKEN-" + Math.floor(100000 + Math.random() * 900000);
+      const res = await fetch(`${API_BASE}/api/notifications/register-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, deviceToken })
+      });
+      if (res.ok) {
+        console.log("Registered simulated FCM device token successfully!");
+        localStorage.setItem("devsetu_push_permission", "granted");
+        localStorage.setItem("devsetu_device_token", deviceToken);
+      }
+    } catch (err) {
+      console.warn("Failed to register simulated FCM token:", err);
+    }
+  };
+
+  const savePreferences = async () => {
+    try {
+      const email = currentUser?.email || currentUser?.phone;
+      if (!email) return;
+      const res = await fetch(`${API_BASE}/api/users/notification-preferences`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          preferences: {
+            email: prefEmail,
+            push: prefPush,
+            sms: prefSms,
+            booking: prefBooking,
+            membership: prefMembership,
+            chat: prefChat
+          }
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const updatedUser = { ...currentUser, notificationPreferences: data.preferences };
+        setCurrentUser(updatedUser);
+        localStorage.setItem("devsetu_user", JSON.stringify(updatedUser));
+        alert("Notification preferences saved successfully!");
+      } else {
+        alert("Failed to save preferences.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error saving preferences.");
+    }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn && currentUser) {
+      const permission = localStorage.getItem("devsetu_push_permission");
+      if (permission === "granted") {
+        registerPushToken(currentUser);
+      } else if (permission !== "denied") {
+        setShowPushPermissionModal(true);
+      }
+    }
+  }, [isLoggedIn, currentUser]);
+
+  useEffect(() => {
+    if (currentUser) {
+      const p = currentUser.notificationPreferences || {};
+      setPrefEmail(p.email !== false);
+      setPrefPush(p.push !== false);
+      setPrefSms(p.sms === true);
+      setPrefBooking(p.booking !== false);
+      setPrefMembership(p.membership !== false);
+      setPrefChat(p.chat !== false);
+    }
+  }, [currentUser]);
+
+  // Toast Auto-Hide effect
+  useEffect(() => {
+    if (activeToast) {
+      const timer = setTimeout(() => {
+        setActiveToast(null);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeToast]);
 
   // Sync theme to local storage
   useEffect(() => {
@@ -564,6 +685,8 @@ export default function App() {
         password: signupPassword,
         state: signupState,
         city: signupCity,
+        district: signupDistrict,
+        specialization: signupSpecialization,
         experience: signupExperience
       };
 
@@ -588,6 +711,8 @@ export default function App() {
       setSignupPhone("");
       setSignupPassword("");
       setSignupConfirmPassword("");
+      setSignupDistrict("");
+      setSignupSpecialization("Vedic Pooja");
     } catch (err) {
       console.error(err);
       alert("Network error occurred during registration.");
@@ -1112,7 +1237,46 @@ export default function App() {
       </header>
 
       {/* Main Workspace split panel */}
-      <main className={`workspace-body show-${simulatorView}`}>
+      {activeRoleSelection === null ? (
+        <div className="role-selection-container fade-in">
+          <div className="role-selection-header">
+            <div className="role-selection-logo">
+              <img 
+                src={theme === "light" ? "/devsetu_light_logo.png" : "/devsetu_dark_logo.png"} 
+                alt="DevSetu Logo" 
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            </div>
+            <h1 style={{ fontFamily: "var(--font-heading)", color: "var(--text-main)", fontSize: "28px", margin: "0 0 8px 0" }}>DEVSETU</h1>
+            <p style={{ color: "var(--text-muted)", fontSize: "14px", margin: 0 }}>Select Login Type</p>
+          </div>
+
+          <div className="role-selection-cards">
+            <div className="role-card" onClick={() => { setActiveRoleSelection("astrologer"); setSimulatorView("mobile"); }}>
+              <div className="role-card-icon">🔮</div>
+              <h2 className="role-card-title">Astrologer Login</h2>
+              <p className="role-card-desc">
+                Login as a registered DEVSETU Astrologer to manage pooja bookings, view notifications, communicate with the administrator, and access your professional dashboard.
+              </p>
+              <button className="btn-primary role-card-btn" type="button">
+                Continue as Astrologer
+              </button>
+            </div>
+
+            <div className="role-card" onClick={() => { setActiveRoleSelection("admin"); setSimulatorView("admin"); }}>
+              <div className="role-card-icon">🛡️</div>
+              <h2 className="role-card-title">Administrator Login</h2>
+              <p className="role-card-desc">
+                Login as DEVSETU Administrator to manage astrologers, approve registrations, verify payments, monitor bookings, and control the platform.
+              </p>
+              <button className="btn-primary role-card-btn" type="button">
+                Continue as Administrator
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <main className={`workspace-body show-${simulatorView}`}>
         
         {/* =========================================================================
             ASTROLOGER MOBILE APP COLUMN (Left Panel)
@@ -1153,37 +1317,164 @@ export default function App() {
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                  <h4 style={{ fontFamily: "var(--font-heading)", color: "var(--text-main)", fontSize: "14px" }}>
-                    {t.notifTitle}
+                  <h4 style={{ fontFamily: "var(--font-heading)", color: "var(--text-main)", fontSize: "14px", margin: 0 }}>
+                    🔔 Notification Center
                   </h4>
-                  <button 
-                    onClick={() => { clearNotifications(); setShowNotifications(false); }} 
-                    style={{ background: "none", border: "none", color: "var(--orange-accent)", fontSize: "11px", fontWeight: "700", cursor: "pointer" }}
-                  >
-                    {t.clearAll}
-                  </button>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "250px", overflowY: "auto" }}>
-                  {notifications.map(n => (
-                    <div 
-                      key={n.id} 
-                      className={`notification-banner ${n.type}`}
-                      style={{ opacity: n.read ? 0.6 : 1 }}
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button 
+                      onClick={async () => {
+                        const email = currentUser?.email || currentUser?.phone;
+                        if (!email) return;
+                        await fetch(`${API_BASE}/api/notifications/clear`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email })
+                        });
+                        const notifRes = await fetch(`${API_BASE}/api/notifications?email=${encodeURIComponent(email)}`);
+                        if (notifRes.ok) setNotifications(await notifRes.json());
+                      }} 
+                      style={{ background: "none", border: "none", color: "var(--temple-gold)", fontSize: "11px", fontWeight: "700", cursor: "pointer" }}
                     >
-                      <div>
-                        <div style={{ fontWeight: "700" }}>{n.title}</div>
-                        <div>{n.body}</div>
-                      </div>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginLeft: "8px" }}>{n.time}</div>
+                      Read All
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        const email = currentUser?.email || currentUser?.phone;
+                        if (!email) return;
+                        await fetch(`${API_BASE}/api/notifications/all?email=${encodeURIComponent(email)}`, {
+                          method: "DELETE"
+                        });
+                        setNotifications([]);
+                      }} 
+                      style={{ background: "none", border: "none", color: "var(--status-danger)", fontSize: "11px", fontWeight: "700", cursor: "pointer" }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bell-dropdown-list" style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "250px", overflowY: "auto", paddingRight: "4px" }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "center", padding: "20px 0" }}>
+                      No notifications yet
                     </div>
-                  ))}
+                  ) : (
+                    notifications.map(n => {
+                      const badgeClass = n.type || "admin";
+                      const isUnread = !n.read;
+                      
+                      return (
+                        <div 
+                          key={n.id} 
+                          className={`bell-item ${isUnread ? 'unread' : ''}`}
+                          style={{
+                            border: "1px solid var(--border-color)",
+                            borderRadius: "8px",
+                            padding: "10px",
+                            backgroundColor: isUnread ? "rgba(200, 155, 60, 0.05)" : "transparent",
+                            borderLeft: isUnread ? "3px solid var(--temple-gold)" : "1px solid var(--border-color)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "4px"
+                          }}
+                          onClick={async () => {
+                            if (isUnread) {
+                              const email = currentUser?.email || currentUser?.phone;
+                              await fetch(`${API_BASE}/api/notifications/mark-read`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email, notificationId: n.id })
+                              });
+                              setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+                            }
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <span style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-main)" }}>
+                              {n.title}
+                            </span>
+                            <button 
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const email = currentUser?.email || currentUser?.phone;
+                                await fetch(`${API_BASE}/api/notifications/${n.id}?email=${encodeURIComponent(email)}`, {
+                                  method: "DELETE"
+                                });
+                                setNotifications(prev => prev.filter(item => item.id !== n.id));
+                              }}
+                              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "12px" }}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                          
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.4" }}>
+                            {n.message || n.body}
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px" }}>
+                            <span className={`bell-item-badge ${badgeClass}`} style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "4px", fontWeight: "700", textTransform: "uppercase" }}>
+                              {badgeClass}
+                            </span>
+                            
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              {n.relatedBookingId && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAstroTab("bookings");
+                                    setTrackingBookingId(n.relatedBookingId);
+                                    setShowNotifications(false);
+                                  }}
+                                  style={{
+                                    fontSize: "9px",
+                                    padding: "2px 8px",
+                                    backgroundColor: "var(--temple-gold)",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    color: "#ffffff",
+                                    cursor: "pointer",
+                                    fontWeight: "700"
+                                  }}
+                                >
+                                  View Booking
+                                </button>
+                              )}
+                              
+                              {badgeClass === "chat" && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAstroTab("support");
+                                    setShowNotifications(false);
+                                  }}
+                                  style={{
+                                    fontSize: "9px",
+                                    padding: "2px 8px",
+                                    backgroundColor: "var(--temple-gold)",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    color: "#ffffff",
+                                    cursor: "pointer",
+                                    fontWeight: "700"
+                                  }}
+                                >
+                                  Chat Now
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
                 <button 
                   className="btn-secondary" 
                   style={{ width: "100%", marginTop: "12px", fontSize: "11px", padding: "6px" }}
                   onClick={() => setShowNotifications(false)}
                 >
-                  Close
+                  Close Panel
                 </button>
               </div>
             )}
@@ -1608,23 +1899,6 @@ export default function App() {
                         </div>
                       ) : (
                         <>
-                        <div className="login-tabs">
-                          <button 
-                            type="button"
-                            onClick={() => { setLoginFormType("email"); setLoginError(null); }}
-                            className={`login-tab-btn ${loginFormType === "email" ? "active" : ""}`}
-                          >
-                            Email
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => { setLoginFormType("mobile"); setLoginError(null); }}
-                            className={`login-tab-btn ${loginFormType === "mobile" ? "active" : ""}`}
-                          >
-                            Mobile
-                          </button>
-                        </div>
-
                         {loginError && (
                           <div className="alert-danger-box" style={{
                             padding: "12px",
@@ -1647,7 +1921,7 @@ export default function App() {
                                   type="button"
                                   onClick={async () => {
                                     try {
-                                      const payload = loginFormType === "email" ? { email: loginEmail } : { phone: loginPhone };
+                                      const payload = { phone: loginPhone };
                                       const res = await fetch(`${API_BASE}/api/auth/login-otp/request`, {
                                         method: "POST",
                                         headers: { "Content-Type": "application/json" },
@@ -1679,31 +1953,17 @@ export default function App() {
                         )}
 
                         <form onSubmit={handleLoginSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                          {loginFormType === "email" ? (
-                            <div className="minimal-input-wrapper">
-                              <span className="minimal-input-icon">📧</span>
-                              <input 
-                                type="email" 
-                                required
-                                placeholder="Email Address" 
-                                className="minimal-input"
-                                value={loginEmail}
-                                onChange={(e) => setLoginEmail(e.target.value)}
-                              />
-                            </div>
-                          ) : (
-                            <div className="minimal-input-wrapper">
-                              <span className="minimal-input-icon">📱</span>
-                              <input 
-                                type="tel" 
-                                required
-                                placeholder="Mobile Number" 
-                                className="minimal-input"
-                                value={loginPhone}
-                                onChange={(e) => setLoginPhone(e.target.value)}
-                              />
-                            </div>
-                          )}
+                          <div className="minimal-input-wrapper">
+                            <span className="minimal-input-icon">📱</span>
+                            <input 
+                              type="tel" 
+                              required
+                              placeholder="Mobile Number" 
+                              className="minimal-input"
+                              value={loginPhone}
+                              onChange={(e) => setLoginPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                            />
+                          </div>
 
                           <div className="minimal-input-wrapper">
                             <span className="minimal-input-icon">🔒</span>
@@ -1750,6 +2010,16 @@ export default function App() {
                             {localTranslations[language]?.loginSignUp || localTranslations.en.loginSignUp}
                           </a>
                         </div>
+
+                        <div style={{ textAlign: "center", marginTop: "16px" }}>
+                          <button 
+                            type="button"
+                            onClick={() => { setActiveRoleSelection(null); setLoginError(null); }}
+                            className="back-to-selection-link"
+                          >
+                            ← Back to Selection
+                          </button>
+                        </div>
                       </>
                     )
                   ) : (
@@ -1768,12 +2038,11 @@ export default function App() {
                             />
                           </div>
 
-                          <div className="minimal-input-wrapper">
+                           <div className="minimal-input-wrapper">
                             <span className="minimal-input-icon">📧</span>
                             <input 
                               type="email" 
-                              required
-                              placeholder="Email Address" 
+                              placeholder="Email Address (Optional)" 
                               className="minimal-input"
                               value={signupEmail}
                               onChange={(e) => setSignupEmail(e.target.value)}
@@ -1788,7 +2057,7 @@ export default function App() {
                               placeholder="Mobile Number" 
                               className="minimal-input"
                               value={signupPhone}
-                              onChange={(e) => setSignupPhone(e.target.value)}
+                              onChange={(e) => setSignupPhone(e.target.value.replace(/[^0-9]/g, ''))}
                             />
                           </div>
 
@@ -1810,6 +2079,21 @@ export default function App() {
                             </div>
 
                             <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label">District</label>
+                              <input 
+                                type="text"
+                                required
+                                placeholder="e.g. Pune"
+                                className="form-input"
+                                value={signupDistrict}
+                                onChange={(e) => setSignupDistrict(e.target.value)}
+                                style={{ padding: "8px 12px", fontSize: "12px" }}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            <div className="form-group" style={{ margin: 0 }}>
                               <label className="form-label">City</label>
                               <input 
                                 type="text"
@@ -1820,6 +2104,22 @@ export default function App() {
                                 onChange={(e) => setSignupCity(e.target.value)}
                                 style={{ padding: "8px 12px", fontSize: "12px" }}
                               />
+                            </div>
+
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label">Specialization</label>
+                              <select 
+                                value={signupSpecialization}
+                                onChange={(e) => setSignupSpecialization(e.target.value)}
+                                className="form-select"
+                                style={{ width: "100%", padding: "8px 12px", fontSize: "12px" }}
+                              >
+                                <option value="Vedic Pooja">Vedic Pooja</option>
+                                <option value="Horoscope Reading">Horoscope Reading</option>
+                                <option value="Vastu Shastra">Vastu Shastra</option>
+                                <option value="Numerology">Numerology</option>
+                                <option value="Palmistry">Palmistry</option>
+                              </select>
                             </div>
                           </div>
 
@@ -3012,7 +3312,7 @@ export default function App() {
                           </h4>
                           <div style={{ fontSize: "11px", display: "grid", gridTemplateColumns: "1fr 2fr", gap: "4px" }}>
                             <span style={{ fontWeight: "700" }}>Email:</span>
-                            <span>{currentUser?.email || "acharya.shastri@devsetu.com"}</span>
+                            <span>{currentUser?.email || "Not Provided"}</span>
                             
                             <span style={{ fontWeight: "700" }}>Mobile:</span>
                             <span>{currentUser?.phone || "+91 91234 56789"}</span>
@@ -3028,9 +3328,15 @@ export default function App() {
                             <span style={{ fontWeight: "700" }}>State:</span>
                             <span>{currentUser?.state || "Uttar Pradesh"}</span>
                             
+                            <span style={{ fontWeight: "700" }}>District:</span>
+                            <span>{currentUser?.district || "Not Provided"}</span>
+
                             <span style={{ fontWeight: "700" }}>City:</span>
                             <span>{currentUser?.city || "Varanasi"}</span>
                             
+                            <span style={{ fontWeight: "700" }}>Specialization:</span>
+                            <span>{currentUser?.specialization || "Vedic Pooja"}</span>
+
                             <span style={{ fontWeight: "700" }}>Experience:</span>
                             <span>{currentUser?.experience || "15 Years"}</span>
                             
@@ -3192,19 +3498,114 @@ export default function App() {
                           </div>
 
                           {/* Notification Preferences */}
-                          <div style={{ padding: "12px 16px" }}>
-                            <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", marginBottom: "8px" }}>
-                              {t.notifPref}
+                          <div style={{ padding: "16px", borderTop: "1px solid var(--border-color)" }}>
+                            <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", marginBottom: "12px" }}>
+                              🔔 Notification Settings
                             </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "11px" }}>
-                              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                                <input type="checkbox" defaultChecked />
-                                <span>{t.notifSMS}</span>
-                              </label>
-                              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
-                                <input type="checkbox" defaultChecked />
-                                <span>{t.notifApp}</span>
-                              </label>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                              <div className="pref-switch-group">
+                                <div className="pref-switch-label">
+                                  <span className="pref-switch-title">Email Notifications</span>
+                                  <span className="pref-switch-desc">Receive transaction invoices & records</span>
+                                </div>
+                                <label className="pref-toggle-container">
+                                  <input 
+                                    type="checkbox" 
+                                    className="pref-toggle-input" 
+                                    checked={prefEmail} 
+                                    onChange={(e) => setPrefEmail(e.target.checked)} 
+                                  />
+                                  <span className="pref-toggle-slider"></span>
+                                </label>
+                              </div>
+
+                              <div className="pref-switch-group">
+                                <div className="pref-switch-label">
+                                  <span className="pref-switch-title">Push Notifications</span>
+                                  <span className="pref-switch-desc">Enable real-time foreground alerts</span>
+                                </div>
+                                <label className="pref-toggle-container">
+                                  <input 
+                                    type="checkbox" 
+                                    className="pref-toggle-input" 
+                                    checked={prefPush} 
+                                    onChange={(e) => setPrefPush(e.target.checked)} 
+                                  />
+                                  <span className="pref-toggle-slider"></span>
+                                </label>
+                              </div>
+
+                              <div className="pref-switch-group">
+                                <div className="pref-switch-label">
+                                  <span className="pref-switch-title">SMS Notifications (Future)</span>
+                                  <span className="pref-switch-desc">Receive alerts on mobile carrier</span>
+                                </div>
+                                <label className="pref-toggle-container">
+                                  <input 
+                                    type="checkbox" 
+                                    className="pref-toggle-input" 
+                                    checked={prefSms} 
+                                    onChange={(e) => setPrefSms(e.target.checked)} 
+                                  />
+                                  <span className="pref-toggle-slider"></span>
+                                </label>
+                              </div>
+
+                              <div className="pref-switch-group">
+                                <div className="pref-switch-label">
+                                  <span className="pref-switch-title">Booking Notifications</span>
+                                  <span className="pref-switch-desc">Receive alerts on new booking updates</span>
+                                </div>
+                                <label className="pref-toggle-container">
+                                  <input 
+                                    type="checkbox" 
+                                    className="pref-toggle-input" 
+                                    checked={prefBooking} 
+                                    onChange={(e) => setPrefBooking(e.target.checked)} 
+                                  />
+                                  <span className="pref-toggle-slider"></span>
+                                </label>
+                              </div>
+
+                              <div className="pref-switch-group">
+                                <div className="pref-switch-label">
+                                  <span className="pref-switch-title">Membership Notifications</span>
+                                  <span className="pref-switch-desc">Receive reminders & activations</span>
+                                </div>
+                                <label className="pref-toggle-container">
+                                  <input 
+                                    type="checkbox" 
+                                    className="pref-toggle-input" 
+                                    checked={prefMembership} 
+                                    onChange={(e) => setPrefMembership(e.target.checked)} 
+                                  />
+                                  <span className="pref-toggle-slider"></span>
+                                </label>
+                              </div>
+
+                              <div className="pref-switch-group">
+                                <div className="pref-switch-label">
+                                  <span className="pref-switch-title">Chat Notifications</span>
+                                  <span className="pref-switch-desc">Receive messages from Administrator</span>
+                                </div>
+                                <label className="pref-toggle-container">
+                                  <input 
+                                    type="checkbox" 
+                                    className="pref-toggle-input" 
+                                    checked={prefChat} 
+                                    onChange={(e) => setPrefChat(e.target.checked)} 
+                                  />
+                                  <span className="pref-toggle-slider"></span>
+                                </label>
+                              </div>
+
+                              <button 
+                                onClick={savePreferences} 
+                                className="btn-primary" 
+                                style={{ width: "100%", padding: "10px", fontSize: "12px", marginTop: "10px" }}
+                              >
+                                Save Settings
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -3289,14 +3690,16 @@ export default function App() {
                   </div>
                 </div>
                 
-                {/* Right Form */}
+                 {/* Right Form */}
                 <form onSubmit={async (e) => {
                   e.preventDefault();
                   try {
                     const payload = {
-                      loginFormType: "email",
-                      email: adminUsername,
-                      password: adminPassword
+                      loginFormType: adminLoginFormType,
+                      email: adminLoginFormType === "email" ? adminUsername : "",
+                      phone: adminLoginFormType === "mobile" ? adminUsername : "",
+                      password: adminPassword,
+                      role: "admin"
                     };
                     const res = await fetch(`${API_BASE}/api/auth/login`, {
                       method: "POST",
@@ -3328,17 +3731,48 @@ export default function App() {
                     </p>
                   </div>
 
-                  <div className="minimal-input-wrapper">
-                    <span className="minimal-input-icon">👤</span>
-                    <input 
-                      type="text" 
-                      required
-                      placeholder={localTranslations[language]?.adminUserLabel || localTranslations.en.adminUserLabel} 
-                      className="minimal-input"
-                      value={adminUsername}
-                      onChange={(e) => setAdminUsername(e.target.value)}
-                    />
+                  <div className="login-tabs" style={{ marginBottom: "8px" }}>
+                    <button 
+                      type="button"
+                      onClick={() => { setAdminLoginFormType("email"); setAdminUsername(""); }}
+                      className={`login-tab-btn ${adminLoginFormType === "email" ? "active" : ""}`}
+                    >
+                      Email
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => { setAdminLoginFormType("mobile"); setAdminUsername(""); }}
+                      className={`login-tab-btn ${adminLoginFormType === "mobile" ? "active" : ""}`}
+                    >
+                      Mobile
+                    </button>
                   </div>
+
+                  {adminLoginFormType === "email" ? (
+                    <div className="minimal-input-wrapper">
+                      <span className="minimal-input-icon">📧</span>
+                      <input 
+                        type="email" 
+                        required
+                        placeholder="Admin Email Address" 
+                        className="minimal-input"
+                        value={adminUsername}
+                        onChange={(e) => setAdminUsername(e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="minimal-input-wrapper">
+                      <span className="minimal-input-icon">📱</span>
+                      <input 
+                        type="tel" 
+                        required
+                        placeholder="Admin Mobile Number" 
+                        className="minimal-input"
+                        value={adminUsername}
+                        onChange={(e) => setAdminUsername(e.target.value.replace(/[^0-9]/g, ''))}
+                      />
+                    </div>
+                  )}
 
                   <div className="minimal-input-wrapper">
                     <span className="minimal-input-icon">🔒</span>
@@ -3390,6 +3824,16 @@ export default function App() {
                     <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
                       {localTranslations[language]?.adminAuthOnly || localTranslations.en.adminAuthOnly} <a href="#" style={{ color: "var(--temple-gold)", textDecoration: "underline" }} onClick={(e) => e.preventDefault()}>{localTranslations[language]?.adminContactSupport || localTranslations.en.adminContactSupport}</a>
                     </p>
+                  </div>
+
+                  <div style={{ textAlign: "center", marginTop: "16px" }}>
+                    <button 
+                      type="button"
+                      onClick={() => { setActiveRoleSelection(null); }}
+                      className="back-to-selection-link"
+                    >
+                      ← Back to Selection
+                    </button>
                   </div>
                 </form>
               </div>
@@ -3520,6 +3964,14 @@ export default function App() {
                 <span>Support Console</span>
               </button>
 
+              <button 
+                onClick={() => setAdminTab("notifications")} 
+                className={`admin-sidebar-item ${adminTab === "notifications" ? "active" : ""}`}
+              >
+                <Bell size={16} />
+                <span>Notifications Panel</span>
+              </button>
+
               <div style={{ marginTop: "auto", padding: "16px 24px", borderTop: "1px solid var(--border-color)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--text-muted)", fontWeight: "600" }}>
@@ -3544,6 +3996,32 @@ export default function App() {
               {/* 1. ADMIN HOME */}
               {adminTab === "home" && (
                 <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                  {/* Admin Profile Details Card */}
+                  <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "12px", border: "1px solid var(--temple-gold)" }}>
+                    <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                      🛡️ Administrator Profile Details
+                    </h4>
+                    <div style={{ fontSize: "12px", display: "grid", gridTemplateColumns: "1fr 2fr", gap: "10px 20px", maxWidth: "600px" }}>
+                      <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Admin ID:</span>
+                      <span style={{ fontFamily: "monospace", fontWeight: "700" }}>{adminUser?.adminId || adminUser?.profileId || "ADM00001"}</span>
+                      
+                      <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Full Name:</span>
+                      <span>{adminUser?.name || "System Administrator"}</span>
+                      
+                      <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Mobile Number:</span>
+                      <span>{adminUser?.phone || adminUser?.mobile || "9999999999"}</span>
+                      
+                      <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Email Address:</span>
+                      <span>{adminUser?.email || "admin@devsetu.com"}</span>
+                      
+                      <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>System Role:</span>
+                      <span style={{ textTransform: "capitalize", fontWeight: "700", color: "var(--orange-accent)" }}>{adminUser?.role || "admin"}</span>
+                      
+                      <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Last Login Session:</span>
+                      <span>{adminUser?.lastLogin || new Date().toLocaleString()}</span>
+                    </div>
+                  </div>
+
                   {/* Statistics Widgets */}
                   <div className="admin-stats-grid">
                     <div className="stat-card">
@@ -4281,7 +4759,244 @@ export default function App() {
                         </button>
                       </div>
 
+                </div>
+              )}
+
+              {/* 6. ADMIN NOTIFICATIONS OPERATIONS PANEL */}
+              {adminTab === "notifications" && (
+                <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <h3 style={{ fontFamily: "var(--font-heading)" }}>Notification Operations Center</h3>
+                  
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", alignItems: "start" }}>
+                    
+                    {/* Left: Dispatch Form */}
+                    <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px", margin: 0 }}>
+                        📢 Broadcast Push / Email Alerts
+                      </h4>
+                      
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!broadcastTitle || !broadcastBody) {
+                          alert("Please fill out both title and message body.");
+                          return;
+                        }
+                        try {
+                          const res = await fetch(`${API_BASE}/api/notifications/broadcast`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              title: broadcastTitle,
+                              body: broadcastBody,
+                              target: broadcastTargetRole,
+                              type: broadcastType
+                            })
+                          });
+                          if (res.ok) {
+                            alert("Broadcast successfully dispatched!");
+                            setBroadcastTitle("");
+                            setBroadcastBody("");
+                            const historyRes = await fetch(`${API_BASE}/api/notifications/admin-history`);
+                            if (historyRes.ok) setAdminHistory(await historyRes.json());
+                          } else {
+                            const errData = await res.json();
+                            alert("Failed to send broadcast: " + (errData.error || "Unknown error"));
+                          }
+                        } catch (err) {
+                          alert("Network error dispatching broadcast.");
+                        }
+                      }} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label">Broadcast Target Group</label>
+                          <select 
+                            value={broadcastTargetRole}
+                            onChange={(e) => setBroadcastTargetRole(e.target.value)}
+                            className="form-select"
+                          >
+                            <option value="astrologer">Astrologers Only (Verified & Pending)</option>
+                            <option value="all">All Registered Users</option>
+                          </select>
+                        </div>
+
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label">Notification Category</label>
+                          <select 
+                            value={broadcastType}
+                            onChange={(e) => setBroadcastType(e.target.value)}
+                            className="form-select"
+                          >
+                            <option value="admin">System Alert (Admin)</option>
+                            <option value="registration">Onboarding / Registration</option>
+                            <option value="booking">Bookings Updates</option>
+                            <option value="payment">Payments / Receipts</option>
+                            <option value="membership">Membership Operations</option>
+                            <option value="chat">Direct Chat</option>
+                          </select>
+                        </div>
+
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label">Title *</label>
+                          <input 
+                            type="text" 
+                            required 
+                            className="form-input" 
+                            placeholder="e.g. Server Maintenance or App Update"
+                            value={broadcastTitle}
+                            onChange={(e) => setBroadcastTitle(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label">Message Body *</label>
+                          <textarea 
+                            required 
+                            className="form-input" 
+                            rows={4}
+                            placeholder="Type broadcast message details here..."
+                            value={broadcastBody}
+                            onChange={(e) => setBroadcastBody(e.target.value)}
+                            style={{ resize: "vertical", fontFamily: "inherit" }}
+                          />
+                        </div>
+
+                        <button type="submit" className="btn-primary" style={{ width: "100%", padding: "12px", marginTop: "6px" }}>
+                          🚀 Dispatch Broadcast Alert
+                        </button>
+                      </form>
                     </div>
+
+                    {/* Right: History Log */}
+                    <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px", margin: 0 }}>
+                        📋 Delivery Logs & Audit Trail
+                      </h4>
+
+                      <div style={{ display: "flex", gap: "8px", flexDirection: "column" }}>
+                        <input 
+                          type="text" 
+                          placeholder="Search logs by email, phone, or title..." 
+                          className="form-input" 
+                          value={adminHistorySearch}
+                          onChange={(e) => setAdminHistorySearch(e.target.value)}
+                          style={{ fontSize: "11px", padding: "6px 10px" }}
+                        />
+                        
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                          <select 
+                            value={adminHistoryFilterStatus} 
+                            onChange={(e) => setAdminHistoryFilterStatus(e.target.value)} 
+                            className="form-select"
+                            style={{ fontSize: "10px", padding: "4px" }}
+                          >
+                            <option value="all">Status: All</option>
+                            <option value="Sent">Status: Sent</option>
+                            <option value="Failed">Status: Failed</option>
+                            <option value="Bypassed">Status: Bypassed</option>
+                          </select>
+                          <select 
+                            value={adminHistoryFilterChannel} 
+                            onChange={(e) => setAdminHistoryFilterChannel(e.target.value)} 
+                            className="form-select"
+                            style={{ fontSize: "10px", padding: "4px" }}
+                          >
+                            <option value="all">Channel: All</option>
+                            <option value="email">Channel: Email</option>
+                            <option value="sms">Channel: SMS</option>
+                            <option value="push">Channel: Push</option>
+                            <option value="in-app">Channel: In-App</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="admin-history-table-container" style={{ maxHeight: "350px", overflowY: "auto" }}>
+                        {(() => {
+                          const filtered = adminHistory.filter(h => {
+                            const matchSearch = !adminHistorySearch || 
+                              (h.recipient && h.recipient.toLowerCase().includes(adminHistorySearch.toLowerCase())) ||
+                              (h.title && h.title.toLowerCase().includes(adminHistorySearch.toLowerCase())) ||
+                              (h.type && h.type.toLowerCase().includes(adminHistorySearch.toLowerCase()));
+                            const matchStatus = adminHistoryFilterStatus === "all" || h.status === adminHistoryFilterStatus;
+                            const matchChannel = adminHistoryFilterChannel === "all" || h.channel === adminHistoryFilterChannel;
+                            return matchSearch && matchStatus && matchChannel;
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <div style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "center", padding: "20px" }}>
+                                No delivery logs matching filters.
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+                              <thead>
+                                <tr style={{ borderBottom: "1px solid var(--border-color)", textAlign: "left", color: "var(--text-muted)" }}>
+                                  <th style={{ padding: "8px 4px" }}>Recipient</th>
+                                  <th style={{ padding: "8px 4px" }}>Notification / channel</th>
+                                  <th style={{ padding: "8px 4px" }}>Status</th>
+                                  <th style={{ padding: "8px 4px" }}>Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filtered.map(h => (
+                                  <tr key={h.id} style={{ borderBottom: "1px dotted var(--border-color)" }}>
+                                    <td style={{ padding: "8px 4px", maxWidth: "120px", wordBreak: "break-all" }}>
+                                      <div style={{ fontWeight: "700" }}>{h.recipient}</div>
+                                      <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>{h.timestamp}</div>
+                                    </td>
+                                    <td style={{ padding: "8px 4px" }}>
+                                      <div style={{ fontWeight: "600" }}>{h.title}</div>
+                                      <div style={{ display: "flex", gap: "4px", marginTop: "2px" }}>
+                                        <span className={`channel-badge ${h.channel}`} style={{ fontSize: "8px", padding: "1px 4px", borderRadius: "3px", textTransform: "uppercase", fontWeight: "700" }}>
+                                          {h.channel}
+                                        </span>
+                                        <span className={`type-badge ${h.type || 'admin'}`} style={{ fontSize: "8px", padding: "1px 4px", borderRadius: "3px", textTransform: "uppercase", fontWeight: "700" }}>
+                                          {h.type || 'admin'}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: "8px 4px" }}>
+                                      <span className={`status-badge ${h.status.toLowerCase()}`} style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                                        {h.status}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: "8px 4px" }}>
+                                      <button 
+                                        onClick={async () => {
+                                          try {
+                                            const res = await fetch(`${API_BASE}/api/notifications/resend`, {
+                                              method: "POST",
+                                              headers: { "Content-Type": "application/json" },
+                                              body: JSON.stringify({ logId: h.id })
+                                            });
+                                            if (res.ok) {
+                                              alert("Resend request dispatched successfully!");
+                                              const historyRes = await fetch(`${API_BASE}/api/notifications/admin-history`);
+                                              if (historyRes.ok) setAdminHistory(await historyRes.json());
+                                            } else {
+                                              alert("Failed to resend notification.");
+                                            }
+                                          } catch (e) {
+                                            alert("Error occurred resending notification.");
+                                          }
+                                        }}
+                                        className="btn-secondary"
+                                        style={{ padding: "2px 6px", fontSize: "9px" }}
+                                      >
+                                        Resend
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
                   </div>
                 </div>
               )}
@@ -4414,6 +5129,91 @@ export default function App() {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Push Permission Dialog */}
+              {showPushPermissionModal && (
+                <div style={{
+                  position: "fixed",
+                  inset: 0,
+                  backgroundColor: "rgba(0,0,0,0.6)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 10000,
+                  backdropFilter: "blur(5px)"
+                }} className="fade-in">
+                  <div className="premium-card" style={{
+                    width: "100%",
+                    maxWidth: "340px",
+                    padding: "24px",
+                    backgroundColor: "var(--bg-card)",
+                    border: "1px solid var(--temple-gold)",
+                    borderRadius: "16px",
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.35)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "18px",
+                    textAlign: "center"
+                  }}>
+                    <div style={{ fontSize: "40px" }}>🔔</div>
+                    <div>
+                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: "0 0 8px 0" }}>
+                        Enable Push Notifications?
+                      </h3>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: "1.4" }}>
+                        DEVSETU CONNECT wants to send you push alerts. This is required for real-time Pooja bookings, client chat updates, and system broadcasts.
+                      </p>
+                    </div>
+                    
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button 
+                        onClick={() => {
+                          localStorage.setItem("devsetu_push_permission", "denied");
+                          setShowPushPermissionModal(false);
+                        }}
+                        className="btn-secondary" 
+                        style={{ flex: 1, padding: "10px", fontSize: "12px" }}
+                      >
+                        Don't Allow
+                      </button>
+                      <button 
+                        onClick={() => {
+                          registerPushToken(currentUser);
+                          setShowPushPermissionModal(false);
+                        }}
+                        className="btn-primary" 
+                        style={{ flex: 1, padding: "10px", fontSize: "12px" }}
+                      >
+                        Allow Alerts
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Foreground Simulated Push / SMS / Email Toast Alert Banner */}
+              {activeToast && (
+                <div className="toast-container">
+                  <div className="push-toast" onClick={() => setActiveToast(null)}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <span className="push-toast-title">
+                        {activeToast.type === 'email' ? "📧 Simulated Email Outbox" : activeToast.type === 'sms' ? "💬 Simulated SMS Outbox" : "🔔 Simulated Foreground Push"}
+                      </span>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setActiveToast(null); }}
+                        style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "11px" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div style={{ fontSize: "10px", fontWeight: "700", marginBottom: "4px" }}>Recipient: {activeToast.recipient}</div>
+                    {activeToast.subject && <div style={{ fontSize: "10px", color: "var(--temple-gold)", marginBottom: "4px" }}>Subject: {activeToast.subject}</div>}
+                    <div className="push-toast-body">
+                      {activeToast.message}
+                    </div>
                   </div>
                 </div>
               )}
@@ -4614,6 +5414,7 @@ export default function App() {
     </section>
 
       </main>
+      )}
     </div>
   );
 }

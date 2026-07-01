@@ -71,10 +71,12 @@ async function cleanDatabase() {
     const { salt: adminSalt, hash: adminHash } = hashPassword(adminPassword);
 
     const adminUser = {
+      adminId: "ADM00001",
       profileId: "DEV-ADM-00001",
       name: "System Administrator",
       email: adminEmail,
       phone: "9999999999",
+      mobile: "9999999999",
       password: adminHash,
       salt: adminSalt,
       accountStatus: "approved",

@@ -1,48 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
-import twilio from 'twilio';
-import nodemailer from 'nodemailer';
 import { database } from './database.js';
+import { notificationService } from './notificationService.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// Initialize Twilio client if keys exist in environment
-let twilioClient = null;
-const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER } = process.env;
-if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) {
-  try {
-    twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
-    console.log('[SMS Gateway] Twilio client initialized successfully.');
-  } catch (err) {
-    console.error('[SMS Gateway] Failed to initialize Twilio client:', err.message);
-  }
-} else {
-  console.log('[SMS Gateway] Twilio credentials missing in env. SMS will be logged to mock outbox.');
-}
-
-// Initialize Nodemailer SMTP transporter if config exists in environment
-let emailTransporter = null;
-const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
-if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS && SMTP_FROM) {
-  try {
-    emailTransporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: parseInt(SMTP_PORT, 10),
-      secure: parseInt(SMTP_PORT, 10) === 465, // true for port 465, false for other ports
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS
-      }
-    });
-    console.log('[Email Gateway] Nodemailer SMTP transporter initialized successfully.');
-  } catch (err) {
-    console.error('[Email Gateway] Failed to initialize SMTP transporter:', err.message);
-  }
-} else {
-  console.log('[Email Gateway] SMTP credentials missing in env. Emails will be logged to mock outbox.');
-}
 
 // Enable CORS for frontend requests
 app.use(cors({
@@ -102,100 +65,31 @@ function isValidPassword(password) {
   return re.test(password);
 }
 
-// Real SMS Delivery helper (Twilio)
-async function sendRealSMS(to, body) {
-  if (!twilioClient) {
-    console.log(`[SMS Gateway] Twilio client not configured. SMS to ${to} bypassed.`);
-    return false;
-  }
-  try {
-    // Standardize to E.164 if simple digits are passed
-    let formattedTo = to.trim();
-    if (!formattedTo.startsWith('+')) {
-      // Default to India (+91) if it is a 10-digit number
-      if (formattedTo.length === 10) {
-        formattedTo = '+91' + formattedTo;
-      } else {
-        formattedTo = '+' + formattedTo;
-      }
-    }
-    const message = await twilioClient.messages.create({
-      body,
-      from: TWILIO_PHONE_NUMBER,
-      to: formattedTo
-    });
-    console.log(`[SMS Gateway] SMS successfully sent via Twilio to ${formattedTo}. SID: ${message.sid}`);
-    return true;
-  } catch (err) {
-    console.error(`[SMS Gateway] Failed to send SMS via Twilio to ${to}:`, err.message);
-    return false;
-  }
-}
 
-// Real Email Delivery helper (Nodemailer SMTP)
-async function sendRealEmail(to, subject, text) {
-  if (!emailTransporter) {
-    console.log(`[Email Gateway] SMTP transporter not configured. Email to ${to} bypassed.`);
-    return false;
-  }
-  try {
-    const info = await emailTransporter.sendMail({
-      from: SMTP_FROM,
-      to,
-      subject,
-      text
-    });
-    console.log(`[Email Gateway] Email successfully sent via SMTP to ${to}. MessageID: ${info.messageId}`);
-    return true;
-  } catch (err) {
-    console.error(`[Email Gateway] Failed to send Email via SMTP to ${to}:`, err.message);
-    return false;
-  }
-}
-
-// Outbox Helper to store mock SMS and Email dispatches for real-time client consumption
-async function sendMockMessage(type, recipient, subject, message) {
-  try {
-    const outbox = await database.getCollection('mock_outbox') || [];
-    const newMsg = {
-      id: "MSG-" + Math.floor(100000 + Math.random() * 900000),
-      type, // 'sms' or 'email'
-      recipient,
-      subject,
-      message,
-      timestamp: new Date().toISOString(),
-      read: false
-    };
-    outbox.unshift(newMsg);
-    // Keep outbox size reasonable (last 50 messages)
-    if (outbox.length > 50) {
-      outbox.pop();
-    }
-    await database.saveCollection('mock_outbox', outbox);
-    console.log(`[OUTBOX STORED] Mock ${type} to ${recipient}`);
-
-    // Trigger real deliveries asynchronously in the background (non-blocking)
-    if (type === 'sms') {
-      sendRealSMS(recipient, message).catch(err => console.error("Async SMS send error:", err));
-    } else if (type === 'email') {
-      sendRealEmail(recipient, subject, message).catch(err => console.error("Async Email send error:", err));
-    }
-  } catch (err) {
-    console.error("Failed to save mock message to outbox:", err);
-  }
-}
 
 
 // Authentication Routes
 app.post('/api/auth/signup', async (req, res) => {
-  const { name, email, phone, password, state, city, experience } = req.body;
-  if (!name || !email || !phone || !password || !state || !city || !experience) {
+  const { name, email, phone, password, state, city, experience, district, specialization } = req.body;
+  if (!name || !phone || !password || !state || !city || !experience) {
     return res.status(400).json({ error: "Missing required registration parameters." });
+  }
+
+  if (!/^\d{10}$/.test(phone)) {
+    return res.status(400).json({ error: "Mobile number must be exactly 10 digits." });
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: "Invalid email address format." });
   }
 
   try {
     const users = await database.getCollection('users');
-    const exists = users.some(u => u.email.toLowerCase() === email.toLowerCase() || u.phone === phone);
+    const exists = users.some(u => {
+      const emailMatch = email && u.email && u.email.toLowerCase() === email.toLowerCase();
+      const phoneMatch = u.phone === phone || u.mobile === phone;
+      return emailMatch || phoneMatch;
+    });
     if (exists) {
       return res.status(400).json({ error: "Account already exists with this email or mobile number." });
     }
@@ -222,46 +116,35 @@ app.post('/api/auth/signup', async (req, res) => {
     const newUser = { 
       profileId, 
       name, 
-      email, 
+      email: email || "", 
       phone, 
+      mobile: phone,
       password: hash, 
       salt,
       state, 
+      district: district || "",
       city, 
       experience,
+      specialization: specialization || "",
       accountStatus: "pending",
+      status: "Pending",
+      approved: false,
       sessionVersion: 1,
+      role: "astrologer",
       createdAt: new Date().toISOString()
     };
     users.push(newUser);
     await database.saveCollection('users', users);
     
-    // Log SMS and Email dispatch for Registration
-    console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-    console.log(`[SMS SENDING] To ${phone}:\nDEVSETU CONNECT\n\nRegistration received.\n\nProfile ID:\n${profileId}\n\nStatus:\nPending Verification\n\nYou will be notified after approval.`);
-    console.log(`[EMAIL SENDING] To ${email}`);
-    console.log(`Subject: Welcome to DEVSETU CONNECT`);
-    console.log(`Message:\nDear ${name},\n\nThank you for registering with DEVSETU CONNECT.\n\nYour registration request has been received.\n\nYour Profile ID:\n\n${profileId}\n\nCurrent Status:\nPending Verification\n\nYou will receive another notification once your account is approved.\n\nRegards,\nDEVSETU CONNECT Team`);
-    console.log(`===========================================================\n`);
-
-    await sendMockMessage('sms', phone, 'Registration Received', `DEVSETU CONNECT\n\nRegistration received.\n\nProfile ID:\n${profileId}\n\nStatus:\nPending Verification\n\nYou will be notified after approval.`);
-    await sendMockMessage('email', email, 'Welcome to DEVSETU CONNECT', `Dear ${name},\n\nThank you for registering with DEVSETU CONNECT.\n\nYour registration request has been received.\n\nYour Profile ID:\n\n${profileId}\n\nCurrent Status:\nPending Verification\n\nYou will receive another notification once your account is approved.\n\nRegards,\nDEVSETU CONNECT Team`);
-
-    // Add registration welcome notification
-    const notifications = await database.getCollection('notifications');
-    const newNotif = {
-      id: "NT-" + Math.floor(10000 + Math.random() * 90000),
-      userEmail: email,
+    await notificationService.sendNotification({
+      userId: email || phone,
+      event: "Registration Submitted",
       title: "Welcome to DEVSETU CONNECT",
       body: `Welcome ${name}. Your registration request has been received under Profile ID: ${profileId}. Status: Pending Verification.`,
-      type: "info",
-      read: false,
-      createdAt: new Date().toISOString()
-    };
-    notifications.unshift(newNotif);
-    await database.saveCollection('notifications', notifications);
+      relatedProfileId: profileId
+    });
 
-    res.status(201).json({ user: { profileId, name, email, phone, state, city, experience, accountStatus: "pending", sessionVersion: 1 } });
+    res.status(201).json({ user: { profileId, name, email: email || "", phone, mobile: phone, state, city, experience, accountStatus: "pending", status: "Pending", approved: false, sessionVersion: 1 } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to sign up user." });
@@ -269,7 +152,7 @@ app.post('/api/auth/signup', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const { loginFormType, email, phone, password } = req.body;
+  const { loginFormType = 'email', email, phone, password, role } = req.body;
   const targetVal = loginFormType === 'email' ? email : phone;
   
   if (!targetVal || !password) {
@@ -279,11 +162,18 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const users = await database.getCollection('users');
     const user = users.find(u => {
-      const checkVal = loginFormType === 'email' ? u.email : u.phone;
+      const checkVal = loginFormType === 'email' ? (u.email || "") : (u.phone || u.mobile || "");
       return checkVal.trim().toLowerCase() === targetVal.trim().toLowerCase();
     });
 
     if (user && verifyPassword(password, user.password, user.salt)) {
+      if (role === 'admin' && user.role !== 'admin') {
+        return res.status(403).json({ error: "Access denied. Admin privileges required." });
+      }
+      if (role === 'astrologer' && user.role === 'admin') {
+        return res.status(403).json({ error: "Invalid astrologer credentials." });
+      }
+
       if (user.accountStatus !== "approved") {
         return res.status(403).json({ 
           error: "Your account is under verification.",
@@ -294,13 +184,20 @@ app.post('/api/auth/login', async (req, res) => {
       res.json({
         user: {
           profileId: user.profileId,
+          adminId: user.adminId,
           name: user.name,
-          email: user.email,
-          phone: user.phone,
+          email: user.email || "",
+          phone: user.phone || user.mobile,
+          mobile: user.mobile || user.phone,
           state: user.state || "Maharashtra",
+          district: user.district || "",
           city: user.city || "Pune",
           experience: user.experience || "5 Years",
+          specialization: user.specialization || "",
           accountStatus: user.accountStatus,
+          status: user.status || "Approved",
+          approved: user.approved !== undefined ? user.approved : (user.accountStatus === 'approved'),
+          role: user.role,
           sessionVersion: user.sessionVersion || 1
         }
       });
@@ -332,35 +229,11 @@ app.post('/api/auth/login-otp/request', async (req, res) => {
       return res.status(404).json({ error: "No account registered with this identity." });
     }
 
-    const targetEmail = user.email;
+    const targetEmail = user.email || user.phone;
     const targetPhone = user.phone;
 
-    // Generate secure 6-digit verification code
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes valid
-
-    const otps = await database.getCollection('otps');
-    const filteredOtps = otps.filter(o => o.email.toLowerCase() !== targetEmail.toLowerCase());
-    filteredOtps.push({
-      email: targetEmail.toLowerCase(),
-      code,
-      expiresAt,
-      attempts: 0
-    });
-    await database.saveCollection('otps', filteredOtps);
-
     await logAuditEvent(targetEmail, "Login OTP Request");
-
-    // Send mock notifications (Email & SMS)
-    console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-    console.log(`[SMS SENDING] To ${targetPhone}:\nDEVSETU CONNECT\n\nYour login verification OTP is:\n\n${code}\n\nValid for 10 minutes.`);
-    console.log(`[EMAIL SENDING] To ${targetEmail}`);
-    console.log(`Subject: DEVSETU CONNECT Login Verification Code`);
-    console.log(`Message:\nDear User,\n\nYour login verification OTP is:\n\n${code}\n\nValid for 10 minutes.\n\nRegards,\nDEVSETU CONNECT Team`);
-    console.log(`===========================================================\n`);
-
-    await sendMockMessage('sms', targetPhone, 'Login OTP Code', `DEVSETU CONNECT\n\nYour login verification OTP is:\n\n${code}\n\nValid for 10 minutes.`);
-    await sendMockMessage('email', targetEmail, 'DEVSETU CONNECT Login Verification Code', `Dear User,\n\nYour login verification OTP is:\n\n${code}\n\nValid for 10 minutes.\n\nRegards,\nDEVSETU CONNECT Team`);
+    await notificationService.sendLoginOtpNotification(targetPhone, targetEmail);
 
     res.json({ success: true, email: targetEmail, message: "Verification code sent." });
   } catch (err) {
@@ -377,8 +250,17 @@ app.post('/api/auth/login-otp/verify', async (req, res) => {
   }
 
   try {
+    const users = await database.getCollection('users');
+    const userIndex = users.findIndex(u => (u.email && u.email.toLowerCase() === email.toLowerCase()) || u.phone === email || u.mobile === email);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const user = users[userIndex];
+    const identity = (user.email || user.phone || user.mobile).toLowerCase();
+
     const otps = await database.getCollection('otps');
-    const otpIndex = otps.findIndex(o => o.email.toLowerCase() === email.toLowerCase());
+    const otpIndex = otps.findIndex(o => o.email && o.email.toLowerCase() === identity);
     if (otpIndex === -1) {
       return res.status(400).json({ error: "No active verification code request found." });
     }
@@ -392,15 +274,10 @@ app.post('/api/auth/login-otp/verify', async (req, res) => {
 
     if (otp.code === code) {
       // Correct code! Update account status to approved
-      const users = await database.getCollection('users');
-      const userIndex = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-      if (userIndex === -1) {
-        return res.status(404).json({ error: "User not found." });
-      }
-
-      const user = users[userIndex];
       const previousStatus = user.accountStatus;
       user.accountStatus = "approved"; // Auto-approve
+      user.status = "Approved";
+      user.approved = true;
       
       users[userIndex] = user;
       await database.saveCollection('users', users);
@@ -413,28 +290,13 @@ app.post('/api/auth/login-otp/verify', async (req, res) => {
 
       // In-App & Email/SMS Notifications for status transition
       if (previousStatus !== "approved") {
-        const notifications = await database.getCollection('notifications');
-        const newNotif = {
-          id: "NT-" + Math.floor(10000 + Math.random() * 90000),
-          userEmail: email,
+        await notificationService.sendNotification({
+          userId: email,
+          event: "Registration Approved",
           title: "Account Approved",
           body: `Your account (${user.profileId}) has been auto-approved via OTP verification. You can now log in.`,
-          type: "success",
-          read: false,
-          createdAt: new Date().toISOString()
-        };
-        notifications.unshift(newNotif);
-        await database.saveCollection('notifications', notifications);
-
-        console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-        console.log(`[SMS SENDING] To ${user.phone}:\nDEVSETU CONNECT\n\nYour account has been auto-approved via OTP.\n\nProfile ID:\n${user.profileId}`);
-        console.log(`[EMAIL SENDING] To ${email}`);
-        console.log(`Subject: Account Auto-Approved via OTP`);
-        console.log(`Message:\nDear Astrologer,\n\nYour account has been auto-approved via OTP verification.\n\nProfile ID:\n${user.profileId}\n\nRegards,\nDEVSETU Team`);
-        console.log(`===========================================================\n`);
-
-        await sendMockMessage('sms', user.phone, 'Account Auto-Approved', `DEVSETU CONNECT\n\nYour account has been auto-approved via OTP.\n\nProfile ID:\n${user.profileId}`);
-        await sendMockMessage('email', email, 'Account Auto-Approved via OTP', `Dear Astrologer,\n\nYour account has been auto-approved via OTP verification.\n\nProfile ID:\n${user.profileId}\n\nRegards,\nDEVSETU Team`);
+          relatedProfileId: user.profileId
+        });
       }
 
       // Return logged in user object
@@ -480,7 +342,7 @@ app.post('/api/auth/change-password', async (req, res) => {
 
   try {
     const users = await database.getCollection('users');
-    const userIndex = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+    const userIndex = users.findIndex(u => (u.email && u.email.toLowerCase() === email.toLowerCase()) || u.phone === email || u.mobile === email);
     if (userIndex === -1) {
       return res.status(404).json({ error: "User not found." });
     }
@@ -504,26 +366,13 @@ app.post('/api/auth/change-password', async (req, res) => {
 
     await logAuditEvent(email, "Password Change");
 
-    // Send In-App Notification
-    const notifications = await database.getCollection('notifications');
-    const newNotif = {
-      id: "NT-" + Math.floor(10000 + Math.random() * 90000),
-      userEmail: email,
-      title: "Password Changed",
+    await notificationService.sendNotification({
+      userId: email,
+      event: "Password Changed",
+      title: "Password Changed Successfully",
       body: "Your password has been changed successfully.",
-      type: "info",
-      read: false,
-      createdAt: new Date().toISOString()
-    };
-    notifications.unshift(newNotif);
-    await database.saveCollection('notifications', notifications);
-
-    // Send mock Email notification
-    console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-    console.log(`[EMAIL SENDING] To ${email}`);
-    console.log(`Subject: Password Changed Successfully`);
-    console.log(`Message:\nDear User,\n\nYour password has been changed successfully.\n\nRegards,\nDEVSETU CONNECT Team`);
-    console.log(`===========================================================\n`);
+      relatedProfileId: user.profileId
+    });
 
     res.json({ success: true, user: { profileId: user.profileId, email: user.email, name: user.name, sessionVersion: user.sessionVersion } });
   } catch (err) {
@@ -534,45 +383,70 @@ app.post('/api/auth/change-password', async (req, res) => {
 
 // Forgot Password - Step 1: Request OTP
 app.post('/api/auth/forgot-password/request', async (req, res) => {
-  const { email } = req.body;
+  const { email } = req.body; // Can be email OR phone
   if (!email) {
-    return res.status(400).json({ error: "Email is required." });
+    return res.status(400).json({ error: "Email or mobile number is required." });
   }
 
   try {
     const users = await database.getCollection('users');
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const user = users.find(u => (u.email && u.email.toLowerCase() === email.toLowerCase()) || (u.phone === email || u.mobile === email));
     if (!user) {
-      return res.status(404).json({ error: "No account registered with this email address." });
+      return res.status(404).json({ error: "No account registered with this identity." });
+    }
+
+    // If it's an astrologer (not admin) and has no email:
+    if (user.role !== 'admin' && !user.email) {
+      return res.json({ 
+        success: false, 
+        hasEmail: false, 
+        message: "No email is registered with this account. Please contact DEVSETU Administrator to reset your password." 
+      });
     }
 
     // Generate secure 6-digit verification code
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes from now
 
+    // We store the OTP key under user's email if they have one, else under their phone number
+    const targetKey = (user.email || user.phone || user.mobile).toLowerCase();
+
     const otps = await database.getCollection('otps');
-    // Remove any existing OTP for this email
-    const filteredOtps = otps.filter(o => o.email.toLowerCase() !== email.toLowerCase());
+    // Remove any existing OTP for this target
+    const filteredOtps = otps.filter(o => o.email && o.email.toLowerCase() !== targetKey);
     filteredOtps.push({
-      email: email.toLowerCase(),
+      email: targetKey,
       code,
       expiresAt,
       attempts: 0
     });
     await database.saveCollection('otps', filteredOtps);
 
-    await logAuditEvent(email, "Password Reset Request");
+    const userEmailForAudit = user.email || user.phone;
+    await logAuditEvent(userEmailForAudit, "Password Reset Request");
 
-    // Send mock Email verification
-    console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-    console.log(`[EMAIL SENDING] To ${email}`);
-    console.log(`Subject: DEVSETU CONNECT Password Reset Verification`);
-    console.log(`Message:\nDear User,\n\nYour verification code is:\n\n${code}\n\nThis code is valid for 10 minutes.\n\nIf you did not request a password reset, please ignore this email.\n\nRegards,\nDEVSETU CONNECT Team`);
-    console.log(`===========================================================\n`);
-
-    await sendMockMessage('email', email, 'DEVSETU CONNECT Password Reset Verification', `Dear User,\n\nYour verification code is:\n\n${code}\n\nThis code is valid for 10 minutes.\n\nIf you did not request a password reset, please ignore this email.\n\nRegards,\nDEVSETU CONNECT Team`);
-
-    res.json({ success: true, message: "Verification code sent to registered email." });
+    // Send code
+    if (user.email) {
+      await notificationService.sendNotification({
+        userId: user.email,
+        event: "Password Reset",
+        title: "DEVSETU CONNECT Password Reset Verification",
+        body: `Dear User,\n\nYour verification code is:\n\n${code}\n\nThis code is valid for 10 minutes.\n\nIf you did not request a password reset, please ignore this email.`,
+        relatedProfileId: user.profileId
+      });
+      res.json({ success: true, hasEmail: true, message: "Verification code sent to registered email." });
+    } else {
+      // Send via SMS (Cost optimization/priority allows SMS here because Priority is HIGH)
+      await notificationService.sendNotification({
+        userId: user.phone || user.mobile,
+        event: "Password Reset",
+        title: "DEVSETU CONNECT Password Reset Verification",
+        body: `Dear User,\n\nYour verification code is: ${code}. Valid for 10 minutes.`,
+        relatedProfileId: user.profileId
+      });
+      console.log(`[BACKEND LOG - SECURE OTP] Password Reset OTP: ${code} for user ${user.phone}`);
+      res.json({ success: true, hasEmail: false, isMockSmsSent: true, message: `Verification code sent to registered mobile number.` });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to process password reset request." });
@@ -583,12 +457,20 @@ app.post('/api/auth/forgot-password/request', async (req, res) => {
 app.post('/api/auth/forgot-password/verify', async (req, res) => {
   const { email, code } = req.body;
   if (!email || !code) {
-    return res.status(400).json({ error: "Email and verification code are required." });
+    return res.status(400).json({ error: "Email/Mobile and verification code are required." });
   }
 
   try {
+    const users = await database.getCollection('users');
+    const user = users.find(u => (u.email && u.email.toLowerCase() === email.toLowerCase()) || (u.phone === email || u.mobile === email));
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const identity = (user.email || user.phone || user.mobile).toLowerCase();
+
     const otps = await database.getCollection('otps');
-    const otpIndex = otps.findIndex(o => o.email.toLowerCase() === email.toLowerCase());
+    const otpIndex = otps.findIndex(o => o.email.toLowerCase() === identity);
     if (otpIndex === -1) {
       return res.status(400).json({ error: "No active verification code request found. Please request a new code." });
     }
@@ -632,8 +514,17 @@ app.post('/api/auth/forgot-password/reset', async (req, res) => {
   }
 
   try {
+    const users = await database.getCollection('users');
+    const userIndex = users.findIndex(u => (u.email && u.email.toLowerCase() === email.toLowerCase()) || (u.phone === email || u.mobile === email));
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const user = users[userIndex];
+    const identity = (user.email || user.phone || user.mobile).toLowerCase();
+
     const otps = await database.getCollection('otps');
-    const otpIndex = otps.findIndex(o => o.email.toLowerCase() === email.toLowerCase() && o.code === code);
+    const otpIndex = otps.findIndex(o => o.email && o.email.toLowerCase() === identity && o.code === code);
     if (otpIndex === -1) {
       return res.status(400).json({ error: "Invalid request. Verification code mismatch or expired." });
     }
@@ -649,18 +540,13 @@ app.post('/api/auth/forgot-password/reset', async (req, res) => {
       return res.status(400).json({ error: "New password must be at least 8 characters long and contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character." });
     }
 
-    const users = await database.getCollection('users');
-    const userIndex = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-    if (userIndex === -1) {
-      return res.status(404).json({ error: "User not found." });
-    }
-
-    const user = users[userIndex];
     const { salt, hash } = hashPassword(newPassword);
     user.password = hash;
     user.salt = salt;
     user.sessionVersion = (user.sessionVersion || 1) + 1; // force logout on other devices
     user.accountStatus = "approved"; // auto-approve account upon successful password reset verification
+    user.status = "Approved";
+    user.approved = true;
 
     users[userIndex] = user;
     await database.saveCollection('users', users);
@@ -671,26 +557,13 @@ app.post('/api/auth/forgot-password/reset', async (req, res) => {
 
     await logAuditEvent(email, "Password Reset Success");
 
-    // In-App Notification
-    const notifications = await database.getCollection('notifications');
-    const newNotif = {
-      id: "NT-" + Math.floor(10000 + Math.random() * 90000),
-      userEmail: email,
+    await notificationService.sendNotification({
+      userId: user.email || user.phone,
+      event: "Password Reset",
       title: "Password Reset Successful",
-      body: "Password updated successfully.",
-      type: "success",
-      read: false,
-      createdAt: new Date().toISOString()
-    };
-    notifications.unshift(newNotif);
-    await database.saveCollection('notifications', notifications);
-
-    // Send confirmation email
-    console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-    console.log(`[EMAIL SENDING] To ${email}`);
-    console.log(`Subject: Password Reset Successful`);
-    console.log(`Message:\nYour DEVSETU CONNECT password has been reset successfully.\n\nIf this was not performed by you, contact support immediately.`);
-    console.log(`===========================================================\n`);
+      body: "Your DEVSETU CONNECT password has been reset successfully.",
+      relatedProfileId: user.profileId
+    });
 
     res.json({ success: true, message: "Password reset completed successfully." });
   } catch (err) {
@@ -708,7 +581,7 @@ app.get('/api/auth/session-status', async (req, res) => {
 
   try {
     const users = await database.getCollection('users');
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const user = users.find(u => (u.email && u.email.toLowerCase() === email.toLowerCase()) || u.phone === email || u.mobile === email);
     if (!user) {
       return res.json({ active: false });
     }
@@ -748,9 +621,19 @@ app.put('/api/users/:email/status', async (req, res) => {
   try {
     const users = await database.getCollection('users');
     let updatedUser = null;
+    const searchVal = email.toLowerCase();
     const updatedUsers = users.map(u => {
-      if (u.email.toLowerCase() === email.toLowerCase()) {
-        updatedUser = { ...u, accountStatus };
+      const matchEmail = u.email && u.email.toLowerCase() === searchVal;
+      const matchPhone = u.phone === email || u.mobile === email;
+      const matchProfile = u.profileId && u.profileId.toLowerCase() === searchVal;
+      if (matchEmail || matchPhone || matchProfile) {
+        const isApproved = accountStatus === 'approved';
+        updatedUser = { 
+          ...u, 
+          accountStatus, 
+          status: isApproved ? "Approved" : "Rejected", 
+          approved: isApproved 
+        };
         return updatedUser;
       }
       return u;
@@ -764,42 +647,15 @@ app.put('/api/users/:email/status', async (req, res) => {
 
     const { name, phone, profileId } = updatedUser;
 
-    // Log SMS and Email dispatch for Status Change
-    console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-    if (accountStatus === 'approved') {
-      console.log(`[SMS SENDING] To ${phone}:\nDEVSETU CONNECT\n\nYour account has been approved.\n\nProfile ID:\n${profileId}\n\nYou can now login to the application.`);
-      console.log(`[EMAIL SENDING] To ${email}`);
-      console.log(`Subject: Account Approved`);
-      console.log(`Message:\nDear Astrologer,\n\nYour account has been verified and approved.\n\nProfile ID:\n${profileId}\n\nYou can now access all DEVSETU CONNECT services.\n\nRegards,\nDEVSETU Team`);
-
-      await sendMockMessage('sms', phone, 'Account Approved', `DEVSETU CONNECT\n\nYour account has been approved.\n\nProfile ID:\n${profileId}\n\nYou can now login to the application.`);
-      await sendMockMessage('email', email, 'Account Approved', `Dear Astrologer,\n\nYour account has been verified and approved.\n\nProfile ID:\n${profileId}\n\nYou can now access all DEVSETU CONNECT services.\n\nRegards,\nDEVSETU Team`);
-    } else {
-      console.log(`[SMS SENDING] To ${phone}:\nDEVSETU CONNECT\n\nYour registration could not be approved.\n\nProfile ID:\n${profileId}\n\nPlease contact support.`);
-      console.log(`[EMAIL SENDING] To ${email}`);
-      console.log(`Subject: Registration Update`);
-      console.log(`Message:\nDear Astrologer,\n\nYour registration request could not be approved.\n\nProfile ID:\n${profileId}\n\nFor assistance please contact DEVSETU Support.\n\nRegards,\nDEVSETU Team`);
-
-      await sendMockMessage('sms', phone, 'Registration Rejected', `DEVSETU CONNECT\n\nYour registration could not be approved.\n\nProfile ID:\n${profileId}\n\nPlease contact support.`);
-      await sendMockMessage('email', email, 'Registration Update', `Dear Astrologer,\n\nYour registration request could not be approved.\n\nProfile ID:\n${profileId}\n\nFor assistance please contact DEVSETU Support.\n\nRegards,\nDEVSETU Team`);
-    }
-    console.log(`===========================================================\n`);
-
-    // Add notification to user's feed
-    const notifications = await database.getCollection('notifications');
-    const newNotif = {
-      id: "NT-" + Math.floor(10000 + Math.random() * 90000),
-      userEmail: email,
+    await notificationService.sendNotification({
+      userId: updatedUser.email || updatedUser.phone,
+      event: accountStatus === 'approved' ? "Registration Approved" : "Registration Rejected",
       title: accountStatus === 'approved' ? "Account Approved" : "Registration Rejected",
-      body: accountStatus === 'approved' 
+      body: accountStatus === 'approved'
         ? `Your account (${profileId}) has been approved. You can now log in.`
         : `Your registration request for account (${profileId}) has been rejected. Please contact support.`,
-      type: accountStatus === 'approved' ? "success" : "danger",
-      read: false,
-      createdAt: new Date().toISOString()
-    };
-    notifications.unshift(newNotif);
-    await database.saveCollection('notifications', notifications);
+      relatedProfileId: profileId
+    });
 
     res.json(updatedUser);
   } catch (err) {
@@ -873,16 +729,14 @@ app.post('/api/bookings', async (req, res) => {
       phone: '8698378379'
     };
 
-    // Log SMS and Email dispatch
-    console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-    console.log(`[SMS SENDING] To ${astroUser.phone}:\nDEVSETU CONNECT\n\nBooking Created Successfully.\n\nBooking ID:\n${bookingId}\n\nComplete payment to continue.`);
-    console.log(`[EMAIL SENDING] To ${astroUser.email}`);
-    console.log(`Subject: Booking Created Successfully`);
-    console.log(`Message:\nDear Astrologer,\n\nYour booking has been created successfully.\n\nProfile ID:\n${astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${bookingId}\n\nCurrent Status:\nPayment Pending\n\nRegards,\nDEVSETU CONNECT Team`);
-    console.log(`===========================================================\n`);
-
-    await sendMockMessage('sms', astroUser.phone, 'Booking Created', `DEVSETU CONNECT\n\nBooking Created Successfully.\n\nBooking ID:\n${bookingId}\n\nComplete payment to continue.`);
-    await sendMockMessage('email', astroUser.email, 'Booking Created Successfully', `Dear Astrologer,\n\nYour booking has been created successfully.\n\nProfile ID:\n${astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${bookingId}\n\nCurrent Status:\nPayment Pending\n\nRegards,\nDEVSETU CONNECT Team`);
+    await notificationService.sendNotification({
+      userId: astroUser.email || astroUser.phone,
+      event: "Booking Submitted",
+      title: "Booking Created Successfully",
+      body: `Your booking has been created successfully. Booking ID: ${bookingId}. Complete payment to verify.`,
+      relatedBookingId: bookingId,
+      relatedProfileId: astrologerProfileId
+    });
 
     res.status(201).json(newBooking);
   } catch (err) {
@@ -958,55 +812,21 @@ app.put('/api/bookings/:id/status', async (req, res) => {
     };
 
     // Create and add status notifications
-    const notifications = await database.getCollection('notifications');
-    let title = "";
-    let body = "";
-    let type = "info";
+    if (status === "approved" || status === "cancelled") {
+      const eventName = status === "approved" ? "Booking Approved" : "Booking Rejected";
+      const notifTitle = status === "approved" ? "Booking Approved" : "Booking Rejected";
+      const notifBody = status === "approved" 
+        ? `Your booking request for ${updatedBooking.packageName} has been approved. Booking ID: ${updatedBooking.id}. Please check the DEVSETU app for further details.`
+        : `Your booking request for ${updatedBooking.packageName} could not be approved. Reason: Payment could not be verified. Please contact support.`;
 
-    if (status === "approved") {
-      title = "Booking Approved";
-      body = `Your booking request for ${updatedBooking.packageName} has been approved. Booking ID: ${updatedBooking.id}. Please check the DEVSETU app for further details.`;
-      type = "success";
-      
-      // Log SMS and Email dispatch
-      console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-      console.log(`[SMS SENDING] To ${astroUser.phone}:\nDEVSETU CONNECT\n\nBooking Approved.\n\nBooking ID:\n${updatedBooking.id}\n\nPlease login for details.`);
-      console.log(`[EMAIL SENDING] To ${astroUser.email}`);
-      console.log(`Subject: Booking Approved`);
-      console.log(`Message:\nDear Astrologer,\n\nYour booking has been approved.\n\nProfile ID:\n${updatedBooking.astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${updatedBooking.id}\n\nStatus:\nApproved\n\nRegards,\nDEVSETU CONNECT Team`);
-      console.log(`===========================================================\n`);
-
-      await sendMockMessage('sms', astroUser.phone, 'Booking Approved', `DEVSETU CONNECT\n\nBooking Approved.\n\nBooking ID:\n${updatedBooking.id}\n\nPlease login for details.`);
-      await sendMockMessage('email', astroUser.email, 'Booking Approved', `Dear Astrologer,\n\nYour booking has been approved.\n\nProfile ID:\n${updatedBooking.astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${updatedBooking.id}\n\nStatus:\nApproved\n\nRegards,\nDEVSETU CONNECT Team`);
-    } else if (status === "cancelled") {
-      title = "Booking Rejected";
-      body = `Your booking request for ${updatedBooking.packageName} could not be approved. Reason: Payment could not be verified. Please contact support.`;
-      type = "danger";
-      
-      // Log SMS and Email dispatch
-      console.log(`\n================== [NOTIFICATION OUTBOX] ==================`);
-      console.log(`[SMS SENDING] To ${astroUser.phone}:\nDEVSETU CONNECT\n\nBooking Rejected.\n\nBooking ID:\n${updatedBooking.id}\n\nPlease contact support.`);
-      console.log(`[EMAIL SENDING] To ${astroUser.email}`);
-      console.log(`Subject: Booking Rejected`);
-      console.log(`Message:\nDear Astrologer,\n\nYour booking request for ${updatedBooking.packageName} could not be approved.\nReason: Payment could not be verified.\n\nProfile ID:\n${updatedBooking.astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${updatedBooking.id}\n\nStatus:\nRejected\n\nRegards,\nDEVSETU CONNECT Team`);
-      console.log(`===========================================================\n`);
-
-      await sendMockMessage('sms', astroUser.phone, 'Booking Rejected', `DEVSETU CONNECT\n\nBooking Rejected.\n\nBooking ID:\n${updatedBooking.id}\n\nPlease contact support.`);
-      await sendMockMessage('email', astroUser.email, 'Booking Rejected', `Dear Astrologer,\n\nYour booking request for ${updatedBooking.packageName} could not be approved.\nReason: Payment could not be verified.\n\nProfile ID:\n${updatedBooking.astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${updatedBooking.id}\n\nStatus:\nRejected\n\nRegards,\nDEVSETU CONNECT Team`);
-    }
-
-    if (title) {
-      const newNotif = {
-        id: "NT-" + Math.floor(10000 + Math.random() * 90000),
-        userEmail: astroUser.email,
-        title,
-        body,
-        type,
-        read: false,
-        createdAt: new Date().toISOString()
-      };
-      notifications.unshift(newNotif);
-      await database.saveCollection('notifications', notifications);
+      await notificationService.sendNotification({
+        userId: astroUser.email || astroUser.phone,
+        event: eventName,
+        title: notifTitle,
+        body: notifBody,
+        relatedBookingId: updatedBooking.id,
+        relatedProfileId: updatedBooking.astrologerProfileId
+      });
     }
 
     res.json(updatedBooking);
@@ -1122,6 +942,20 @@ app.post('/api/chats', async (req, res) => {
     });
     await database.saveCollection('tickets', nextTickets);
 
+    // Trigger Admin Chat Message notification if sender is admin
+    if (sender === "admin") {
+      const userMessage = chats.find(c => c.ticketId === ticketId && c.sender !== "admin");
+      if (userMessage) {
+        await notificationService.sendNotification({
+          userId: userMessage.sender,
+          event: "Admin Chat Message",
+          title: "New Support Message",
+          body: `Support: ${text || "Attached a file."}`,
+          relatedProfileId: ticketId
+        });
+      }
+    }
+
     res.status(201).json(newChat);
   } catch (err) {
     console.error(err);
@@ -1133,12 +967,12 @@ app.post('/api/chats', async (req, res) => {
 app.get('/api/notifications', async (req, res) => {
   const { email } = req.query;
   try {
-    const notifications = await database.getCollection('notifications');
     if (email) {
-      const filtered = notifications.filter(n => n.userEmail.toLowerCase() === email.toLowerCase());
-      res.json(filtered);
+      const history = await notificationService.getNotificationHistory(email);
+      res.json(history);
     } else {
-      res.json(notifications);
+      const history = await notificationService.getNotificationHistory('admin');
+      res.json(history);
     }
   } catch (err) {
     console.error(err);
@@ -1151,20 +985,133 @@ app.post('/api/notifications/clear', async (req, res) => {
   if (!email) {
     return res.status(400).json({ error: "Email is required." });
   }
-
   try {
-    const notifications = await database.getCollection('notifications');
-    const updated = notifications.map(n => {
-      if (n.userEmail.toLowerCase() === email.toLowerCase()) {
-        return { ...n, read: true };
-      }
-      return n;
-    });
-    await database.saveCollection('notifications', updated);
+    await notificationService.markAsRead('all', email);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to clear notifications." });
+  }
+});
+
+app.post('/api/notifications/mark-read', async (req, res) => {
+  const { email, notificationId } = req.body;
+  if (!email || !notificationId) {
+    return res.status(400).json({ error: "Email and notificationId are required." });
+  }
+  try {
+    await notificationService.markAsRead(notificationId, email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to mark notification as read." });
+  }
+});
+
+app.delete('/api/notifications/:id', async (req, res) => {
+  const { id } = req.params;
+  const { email } = req.query;
+  if (!email) {
+    return res.status(400).json({ error: "Email/Mobile query parameter is required." });
+  }
+  try {
+    await notificationService.deleteNotification(id, email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete notification." });
+  }
+});
+
+app.post('/api/notifications/register-token', async (req, res) => {
+  const { email, deviceToken } = req.body;
+  if (!email || !deviceToken) {
+    return res.status(400).json({ error: "Email/Mobile and deviceToken are required." });
+  }
+  try {
+    const users = await database.getCollection('users');
+    const userIndex = users.findIndex(u => (u.email && u.email.toLowerCase() === email.toLowerCase()) || u.phone === email || u.mobile === email || u.profileId === email);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    users[userIndex].deviceToken = deviceToken;
+    await database.saveCollection('users', users);
+    console.log(`[Push Token Registered] for user ${email}: ${deviceToken}`);
+    res.json({ success: true, message: "Device token registered successfully." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to register push token." });
+  }
+});
+
+app.post('/api/users/notification-preferences', async (req, res) => {
+  const { email, preferences } = req.body;
+  if (!email || !preferences) {
+    return res.status(400).json({ error: "Email/Mobile and preferences are required." });
+  }
+  try {
+    const users = await database.getCollection('users');
+    const userIndex = users.findIndex(u => (u.email && u.email.toLowerCase() === email.toLowerCase()) || u.phone === email || u.mobile === email || u.profileId === email);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    users[userIndex].notificationPreferences = preferences;
+    await database.saveCollection('users', users);
+    console.log(`[Preferences Updated] for user ${email}:`, preferences);
+    res.json({ success: true, preferences: users[userIndex].notificationPreferences });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update notification preferences." });
+  }
+});
+
+app.post('/api/notifications/broadcast', async (req, res) => {
+  const { adminId, targetRole, targetUserIds, title, body, type } = req.body;
+  if (!adminId || !title || !body) {
+    return res.status(400).json({ error: "adminId, title, and body are required." });
+  }
+  try {
+    const result = await notificationService.broadcastNotification(adminId, { targetRole, targetUserIds, title, body, type });
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to broadcast notification." });
+  }
+});
+
+app.get('/api/notifications/admin-history', async (req, res) => {
+  try {
+    const history = await notificationService.getNotificationHistory('admin');
+    res.json(history);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to retrieve history." });
+  }
+});
+
+app.post('/api/notifications/resend', async (req, res) => {
+  const { notificationId } = req.body;
+  if (!notificationId) {
+    return res.status(400).json({ error: "notificationId is required." });
+  }
+  try {
+    const notifications = await database.getCollection('notifications');
+    const notif = notifications.find(n => n.id === notificationId || n.notificationId === notificationId);
+    if (!notif) {
+      return res.status(404).json({ error: "Notification record not found." });
+    }
+    const result = await notificationService.sendNotification({
+      userId: notif.userId || notif.userEmail,
+      event: notif.type === 'registration' ? 'Registration Approved' : 'Booking Approved',
+      title: notif.title,
+      body: notif.message || notif.body,
+      relatedBookingId: notif.relatedBookingId,
+      relatedProfileId: notif.relatedProfileId
+    });
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to resend notification." });
   }
 });
 

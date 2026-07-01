@@ -1465,3 +1465,470 @@ input:checked + .slider:before {
   margin-top: 6px;
 }
 
+/* Role Selection Screen CSS */
+.role-selection-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  padding: 40px 20px;
+  background-color: var(--bg-app);
+  box-sizing: border-box;
+}
+
+.role-selection-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.role-selection-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: var(--phone-card-bg);
+  border: 1.5px solid var(--temple-gold);
+  padding: 10px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+}
+
+.role-selection-cards {
+  display: flex;
+  gap: 24px;
+  max-width: 900px;
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.role-card {
+  flex: 1;
+  min-width: 280px;
+  max-width: 380px;
+  background-color: var(--phone-card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.role-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--temple-gold);
+  box-shadow: var(--shadow-md);
+}
+
+.role-card-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.role-card-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--text-main);
+  margin: 0 0 12px 0;
+}
+
+.role-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+  flex-grow: 1;
+}
+
+.role-card-btn {
+  width: 100%;
+  padding: 12px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.back-to-selection-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--temple-gold);
+  text-decoration: none;
+  font-weight: 700;
+  margin-top: 12px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.back-to-selection-link:hover {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   Centralized Notification System Upgrade
+   ========================================================================== */
+
+/* Notification Bell dropdown container */
+.bell-container {
+  position: relative;
+  display: inline-block;
+}
+
+.bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: var(--status-danger);
+  color: #ffffff;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  border: 1px solid var(--phone-card-bg);
+  min-width: 16px;
+  text-align: center;
+}
+
+.bell-dropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  width: 320px;
+  background-color: var(--phone-card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 400px;
+}
+
+.bell-dropdown-header {
+  padding: 12px 16px;
+  background-color: var(--primary-brown);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bell-dropdown-header h3 {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text-main);
+  font-family: var(--font-heading);
+}
+
+.bell-clear-all {
+  font-size: 11px;
+  color: var(--temple-gold);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.bell-dropdown-list {
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.bell-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  transition: var(--transition-smooth);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bell-item:hover {
+  background-color: rgba(200, 155, 60, 0.05);
+}
+
+.bell-item.unread {
+  background-color: rgba(200, 155, 60, 0.08);
+  border-left: 3px solid var(--temple-gold);
+}
+
+.bell-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.bell-item-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-main);
+}
+
+.bell-item-time {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.bell-item-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.bell-item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.bell-item-badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.bell-item-badge.registration { background-color: rgba(147, 51, 234, 0.15); color: #c084fc; }
+.bell-item-badge.booking { background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.bell-item-badge.payment { background-color: rgba(234, 179, 8, 0.15); color: #facc15; }
+.bell-item-badge.chat { background-color: rgba(16, 185, 129, 0.15); color: #34d399; }
+.bell-item-badge.membership { background-color: rgba(236, 72, 153, 0.15); color: #f472b6; }
+.bell-item-badge.admin { background-color: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+.bell-action-btn {
+  font-size: 10px;
+  color: #ffffff;
+  background-color: var(--temple-gold);
+  border: none;
+  border-radius: var(--btn-radius);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.bell-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.bell-delete-btn:hover {
+  color: var(--status-danger);
+}
+
+.bell-dropdown-footer {
+  padding: 10px;
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--phone-card-bg);
+}
+
+.bell-close-btn {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+
+.bell-close-btn:hover {
+  color: var(--text-main);
+}
+
+/* Preferences Toggle Switch Style */
+.pref-switch-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pref-switch-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pref-switch-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.pref-switch-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.pref-toggle-container {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 22px;
+}
+
+.pref-toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.pref-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #3b2314;
+  transition: .4s;
+  border-radius: 22px;
+  border: 1px solid var(--border-color);
+}
+
+.pref-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-muted);
+  transition: .4s;
+  border-radius: 50%;
+}
+
+.pref-toggle-input:checked + .pref-toggle-slider {
+  background-color: var(--temple-gold);
+}
+
+.pref-toggle-input:checked + .pref-toggle-slider:before {
+  transform: translateX(22px);
+  background-color: #ffffff;
+}
+
+/* Admin Broadcast Form & Delivery History table styling */
+.admin-broadcast-section {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+@media (max-width: 992px) {
+  .admin-broadcast-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-broadcast-card {
+  background-color: var(--phone-card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: 20px;
+}
+
+.admin-history-card {
+  background-color: var(--phone-card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: 20px;
+}
+
+.admin-history-table-container {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.admin-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.admin-history-table th {
+  padding: 10px 12px;
+  background-color: rgba(200, 155, 60, 0.1);
+  color: var(--temple-gold);
+  text-align: left;
+  border-bottom: 2px solid var(--border-color);
+  font-weight: 700;
+}
+
+.admin-history-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.admin-history-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.admin-history-badge.Sent { background-color: rgba(16, 185, 129, 0.15); color: #34d399; }
+.admin-history-badge.Failed { background-color: rgba(239, 68, 68, 0.15); color: #f87171; }
+.admin-history-badge.Bypassed { background-color: rgba(234, 179, 8, 0.15); color: #facc15; }
+
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 320px;
+}
+
+.push-toast {
+  background-color: var(--primary-brown);
+  border: 1px solid var(--temple-gold);
+  border-radius: var(--btn-radius);
+  box-shadow: var(--shadow-lg);
+  padding: 12px 16px;
+  color: var(--text-main);
+  animation: slideInRight 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.push-toast-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--temple-gold);
+}
+
+.push-toast-body {
+  font-size: 11px;
+}
+
+

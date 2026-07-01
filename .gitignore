@@ -31,4 +31,12 @@ android/.idea/
 *.iml
 
 # Release folders
+Release/Devsetu/
+
+Devsetu/
 Release/
+
+# Local business assets
+public/payment_qr_1.jpeg
+public/payment_qr_2.jpeg
+server/database.json
