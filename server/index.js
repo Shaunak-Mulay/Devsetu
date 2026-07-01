@@ -1,10 +1,48 @@
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
+import twilio from 'twilio';
+import nodemailer from 'nodemailer';
 import { database } from './database.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Initialize Twilio client if keys exist in environment
+let twilioClient = null;
+const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER } = process.env;
+if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) {
+  try {
+    twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+    console.log('[SMS Gateway] Twilio client initialized successfully.');
+  } catch (err) {
+    console.error('[SMS Gateway] Failed to initialize Twilio client:', err.message);
+  }
+} else {
+  console.log('[SMS Gateway] Twilio credentials missing in env. SMS will be logged to mock outbox.');
+}
+
+// Initialize Nodemailer SMTP transporter if config exists in environment
+let emailTransporter = null;
+const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
+if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS && SMTP_FROM) {
+  try {
+    emailTransporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: parseInt(SMTP_PORT, 10),
+      secure: parseInt(SMTP_PORT, 10) === 465, // true for port 465, false for other ports
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS
+      }
+    });
+    console.log('[Email Gateway] Nodemailer SMTP transporter initialized successfully.');
+  } catch (err) {
+    console.error('[Email Gateway] Failed to initialize SMTP transporter:', err.message);
+  }
+} else {
+  console.log('[Email Gateway] SMTP credentials missing in env. Emails will be logged to mock outbox.');
+}
 
 // Enable CORS for frontend requests
 app.use(cors({
@@ -64,6 +102,90 @@ function isValidPassword(password) {
   return re.test(password);
 }
 
+// Real SMS Delivery helper (Twilio)
+async function sendRealSMS(to, body) {
+  if (!twilioClient) {
+    console.log(`[SMS Gateway] Twilio client not configured. SMS to ${to} bypassed.`);
+    return false;
+  }
+  try {
+    // Standardize to E.164 if simple digits are passed
+    let formattedTo = to.trim();
+    if (!formattedTo.startsWith('+')) {
+      // Default to India (+91) if it is a 10-digit number
+      if (formattedTo.length === 10) {
+        formattedTo = '+91' + formattedTo;
+      } else {
+        formattedTo = '+' + formattedTo;
+      }
+    }
+    const message = await twilioClient.messages.create({
+      body,
+      from: TWILIO_PHONE_NUMBER,
+      to: formattedTo
+    });
+    console.log(`[SMS Gateway] SMS successfully sent via Twilio to ${formattedTo}. SID: ${message.sid}`);
+    return true;
+  } catch (err) {
+    console.error(`[SMS Gateway] Failed to send SMS via Twilio to ${to}:`, err.message);
+    return false;
+  }
+}
+
+// Real Email Delivery helper (Nodemailer SMTP)
+async function sendRealEmail(to, subject, text) {
+  if (!emailTransporter) {
+    console.log(`[Email Gateway] SMTP transporter not configured. Email to ${to} bypassed.`);
+    return false;
+  }
+  try {
+    const info = await emailTransporter.sendMail({
+      from: SMTP_FROM,
+      to,
+      subject,
+      text
+    });
+    console.log(`[Email Gateway] Email successfully sent via SMTP to ${to}. MessageID: ${info.messageId}`);
+    return true;
+  } catch (err) {
+    console.error(`[Email Gateway] Failed to send Email via SMTP to ${to}:`, err.message);
+    return false;
+  }
+}
+
+// Outbox Helper to store mock SMS and Email dispatches for real-time client consumption
+async function sendMockMessage(type, recipient, subject, message) {
+  try {
+    const outbox = await database.getCollection('mock_outbox') || [];
+    const newMsg = {
+      id: "MSG-" + Math.floor(100000 + Math.random() * 900000),
+      type, // 'sms' or 'email'
+      recipient,
+      subject,
+      message,
+      timestamp: new Date().toISOString(),
+      read: false
+    };
+    outbox.unshift(newMsg);
+    // Keep outbox size reasonable (last 50 messages)
+    if (outbox.length > 50) {
+      outbox.pop();
+    }
+    await database.saveCollection('mock_outbox', outbox);
+    console.log(`[OUTBOX STORED] Mock ${type} to ${recipient}`);
+
+    // Trigger real deliveries asynchronously in the background (non-blocking)
+    if (type === 'sms') {
+      sendRealSMS(recipient, message).catch(err => console.error("Async SMS send error:", err));
+    } else if (type === 'email') {
+      sendRealEmail(recipient, subject, message).catch(err => console.error("Async Email send error:", err));
+    }
+  } catch (err) {
+    console.error("Failed to save mock message to outbox:", err);
+  }
+}
+
+
 // Authentication Routes
 app.post('/api/auth/signup', async (req, res) => {
   const { name, email, phone, password, state, city, experience } = req.body;
@@ -121,6 +243,9 @@ app.post('/api/auth/signup', async (req, res) => {
     console.log(`Subject: Welcome to DEVSETU CONNECT`);
     console.log(`Message:\nDear ${name},\n\nThank you for registering with DEVSETU CONNECT.\n\nYour registration request has been received.\n\nYour Profile ID:\n\n${profileId}\n\nCurrent Status:\nPending Verification\n\nYou will receive another notification once your account is approved.\n\nRegards,\nDEVSETU CONNECT Team`);
     console.log(`===========================================================\n`);
+
+    await sendMockMessage('sms', phone, 'Registration Received', `DEVSETU CONNECT\n\nRegistration received.\n\nProfile ID:\n${profileId}\n\nStatus:\nPending Verification\n\nYou will be notified after approval.`);
+    await sendMockMessage('email', email, 'Welcome to DEVSETU CONNECT', `Dear ${name},\n\nThank you for registering with DEVSETU CONNECT.\n\nYour registration request has been received.\n\nYour Profile ID:\n\n${profileId}\n\nCurrent Status:\nPending Verification\n\nYou will receive another notification once your account is approved.\n\nRegards,\nDEVSETU CONNECT Team`);
 
     // Add registration welcome notification
     const notifications = await database.getCollection('notifications');
@@ -234,6 +359,9 @@ app.post('/api/auth/login-otp/request', async (req, res) => {
     console.log(`Message:\nDear User,\n\nYour login verification OTP is:\n\n${code}\n\nValid for 10 minutes.\n\nRegards,\nDEVSETU CONNECT Team`);
     console.log(`===========================================================\n`);
 
+    await sendMockMessage('sms', targetPhone, 'Login OTP Code', `DEVSETU CONNECT\n\nYour login verification OTP is:\n\n${code}\n\nValid for 10 minutes.`);
+    await sendMockMessage('email', targetEmail, 'DEVSETU CONNECT Login Verification Code', `Dear User,\n\nYour login verification OTP is:\n\n${code}\n\nValid for 10 minutes.\n\nRegards,\nDEVSETU CONNECT Team`);
+
     res.json({ success: true, email: targetEmail, message: "Verification code sent." });
   } catch (err) {
     console.error(err);
@@ -304,6 +432,9 @@ app.post('/api/auth/login-otp/verify', async (req, res) => {
         console.log(`Subject: Account Auto-Approved via OTP`);
         console.log(`Message:\nDear Astrologer,\n\nYour account has been auto-approved via OTP verification.\n\nProfile ID:\n${user.profileId}\n\nRegards,\nDEVSETU Team`);
         console.log(`===========================================================\n`);
+
+        await sendMockMessage('sms', user.phone, 'Account Auto-Approved', `DEVSETU CONNECT\n\nYour account has been auto-approved via OTP.\n\nProfile ID:\n${user.profileId}`);
+        await sendMockMessage('email', email, 'Account Auto-Approved via OTP', `Dear Astrologer,\n\nYour account has been auto-approved via OTP verification.\n\nProfile ID:\n${user.profileId}\n\nRegards,\nDEVSETU Team`);
       }
 
       // Return logged in user object
@@ -438,6 +569,8 @@ app.post('/api/auth/forgot-password/request', async (req, res) => {
     console.log(`Subject: DEVSETU CONNECT Password Reset Verification`);
     console.log(`Message:\nDear User,\n\nYour verification code is:\n\n${code}\n\nThis code is valid for 10 minutes.\n\nIf you did not request a password reset, please ignore this email.\n\nRegards,\nDEVSETU CONNECT Team`);
     console.log(`===========================================================\n`);
+
+    await sendMockMessage('email', email, 'DEVSETU CONNECT Password Reset Verification', `Dear User,\n\nYour verification code is:\n\n${code}\n\nThis code is valid for 10 minutes.\n\nIf you did not request a password reset, please ignore this email.\n\nRegards,\nDEVSETU CONNECT Team`);
 
     res.json({ success: true, message: "Verification code sent to registered email." });
   } catch (err) {
@@ -638,11 +771,17 @@ app.put('/api/users/:email/status', async (req, res) => {
       console.log(`[EMAIL SENDING] To ${email}`);
       console.log(`Subject: Account Approved`);
       console.log(`Message:\nDear Astrologer,\n\nYour account has been verified and approved.\n\nProfile ID:\n${profileId}\n\nYou can now access all DEVSETU CONNECT services.\n\nRegards,\nDEVSETU Team`);
+
+      await sendMockMessage('sms', phone, 'Account Approved', `DEVSETU CONNECT\n\nYour account has been approved.\n\nProfile ID:\n${profileId}\n\nYou can now login to the application.`);
+      await sendMockMessage('email', email, 'Account Approved', `Dear Astrologer,\n\nYour account has been verified and approved.\n\nProfile ID:\n${profileId}\n\nYou can now access all DEVSETU CONNECT services.\n\nRegards,\nDEVSETU Team`);
     } else {
       console.log(`[SMS SENDING] To ${phone}:\nDEVSETU CONNECT\n\nYour registration could not be approved.\n\nProfile ID:\n${profileId}\n\nPlease contact support.`);
       console.log(`[EMAIL SENDING] To ${email}`);
       console.log(`Subject: Registration Update`);
       console.log(`Message:\nDear Astrologer,\n\nYour registration request could not be approved.\n\nProfile ID:\n${profileId}\n\nFor assistance please contact DEVSETU Support.\n\nRegards,\nDEVSETU Team`);
+
+      await sendMockMessage('sms', phone, 'Registration Rejected', `DEVSETU CONNECT\n\nYour registration could not be approved.\n\nProfile ID:\n${profileId}\n\nPlease contact support.`);
+      await sendMockMessage('email', email, 'Registration Update', `Dear Astrologer,\n\nYour registration request could not be approved.\n\nProfile ID:\n${profileId}\n\nFor assistance please contact DEVSETU Support.\n\nRegards,\nDEVSETU Team`);
     }
     console.log(`===========================================================\n`);
 
@@ -742,6 +881,9 @@ app.post('/api/bookings', async (req, res) => {
     console.log(`Message:\nDear Astrologer,\n\nYour booking has been created successfully.\n\nProfile ID:\n${astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${bookingId}\n\nCurrent Status:\nPayment Pending\n\nRegards,\nDEVSETU CONNECT Team`);
     console.log(`===========================================================\n`);
 
+    await sendMockMessage('sms', astroUser.phone, 'Booking Created', `DEVSETU CONNECT\n\nBooking Created Successfully.\n\nBooking ID:\n${bookingId}\n\nComplete payment to continue.`);
+    await sendMockMessage('email', astroUser.email, 'Booking Created Successfully', `Dear Astrologer,\n\nYour booking has been created successfully.\n\nProfile ID:\n${astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${bookingId}\n\nCurrent Status:\nPayment Pending\n\nRegards,\nDEVSETU CONNECT Team`);
+
     res.status(201).json(newBooking);
   } catch (err) {
     console.error(err);
@@ -833,6 +975,9 @@ app.put('/api/bookings/:id/status', async (req, res) => {
       console.log(`Subject: Booking Approved`);
       console.log(`Message:\nDear Astrologer,\n\nYour booking has been approved.\n\nProfile ID:\n${updatedBooking.astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${updatedBooking.id}\n\nStatus:\nApproved\n\nRegards,\nDEVSETU CONNECT Team`);
       console.log(`===========================================================\n`);
+
+      await sendMockMessage('sms', astroUser.phone, 'Booking Approved', `DEVSETU CONNECT\n\nBooking Approved.\n\nBooking ID:\n${updatedBooking.id}\n\nPlease login for details.`);
+      await sendMockMessage('email', astroUser.email, 'Booking Approved', `Dear Astrologer,\n\nYour booking has been approved.\n\nProfile ID:\n${updatedBooking.astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${updatedBooking.id}\n\nStatus:\nApproved\n\nRegards,\nDEVSETU CONNECT Team`);
     } else if (status === "cancelled") {
       title = "Booking Rejected";
       body = `Your booking request for ${updatedBooking.packageName} could not be approved. Reason: Payment could not be verified. Please contact support.`;
@@ -845,6 +990,9 @@ app.put('/api/bookings/:id/status', async (req, res) => {
       console.log(`Subject: Booking Rejected`);
       console.log(`Message:\nDear Astrologer,\n\nYour booking request for ${updatedBooking.packageName} could not be approved.\nReason: Payment could not be verified.\n\nProfile ID:\n${updatedBooking.astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${updatedBooking.id}\n\nStatus:\nRejected\n\nRegards,\nDEVSETU CONNECT Team`);
       console.log(`===========================================================\n`);
+
+      await sendMockMessage('sms', astroUser.phone, 'Booking Rejected', `DEVSETU CONNECT\n\nBooking Rejected.\n\nBooking ID:\n${updatedBooking.id}\n\nPlease contact support.`);
+      await sendMockMessage('email', astroUser.email, 'Booking Rejected', `Dear Astrologer,\n\nYour booking request for ${updatedBooking.packageName} could not be approved.\nReason: Payment could not be verified.\n\nProfile ID:\n${updatedBooking.astrologerProfileId || 'DEV-AST-00001'}\n\nBooking ID:\n${updatedBooking.id}\n\nStatus:\nRejected\n\nRegards,\nDEVSETU CONNECT Team`);
     }
 
     if (title) {
@@ -1017,6 +1165,27 @@ app.post('/api/notifications/clear', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to clear notifications." });
+  }
+});
+
+// Debug Outbox APIs for real-time frontend notifications
+app.get('/api/debug/outbox', async (req, res) => {
+  try {
+    const outbox = await database.getCollection('mock_outbox') || [];
+    res.json(outbox);
+  } catch (err) {
+    console.error("Failed to read mock outbox:", err);
+    res.status(500).json({ error: "Failed to read mock outbox." });
+  }
+});
+
+app.post('/api/debug/outbox/clear', async (req, res) => {
+  try {
+    await database.saveCollection('mock_outbox', []);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Failed to clear mock outbox:", err);
+    res.status(500).json({ error: "Failed to clear mock outbox." });
   }
 });
 

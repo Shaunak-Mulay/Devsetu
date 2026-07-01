@@ -39,22 +39,7 @@ import { servicesData, translations, sampleScreenshots, mockAstrologers } from "
 const getApiBase = () => {
   const saved = localStorage.getItem("devsetu_api_base");
   if (saved) return saved;
-  const defaultBase = "https://devsetu-4wav.onrender.com";
-  if (typeof window !== 'undefined') {
-    // In Capacitor (native app)
-    if (window.Capacitor) {
-      return defaultBase;
-    }
-    // In local web browser
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return "http://localhost:5000";
-    }
-    // In web browser via custom network hostname/IP
-    if (window.location.hostname) {
-      return `http://${window.location.hostname}:5000`;
-    }
-  }
-  return defaultBase;
+  return "https://devsetu-4wav.onrender.com";
 };
 const API_BASE = getApiBase();
 
@@ -192,7 +177,7 @@ export default function App() {
   const [adminSecurityError, setAdminSecurityError] = useState(null);
 
   // Login Form States
-  const [loginFormType, setLoginFormType] = useState("email"); // email or mobile
+  const [loginFormType, setLoginFormType] = useState("mobile"); // email or mobile
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -242,9 +227,54 @@ export default function App() {
   const [isBookingFlow, setIsBookingFlow] = useState(null); // stores active package
   const [trackingBookingId, setTrackingBookingId] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
-
   // Active bookings list
   const [bookings, setBookings] = useState([]);
+
+  // State for incoming real-time mock SMS/Email toast alerts
+  const [activeToast, setActiveToast] = useState(null);
+
+  // Poll mock outbox messages for real-time notification toasts
+  useEffect(() => {
+    let initialized = false;
+    let lastMsgId = null;
+
+    const pollOutbox = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/debug/outbox`);
+        if (!res.ok) return;
+        const messages = await res.json();
+        if (messages && messages.length > 0) {
+          const newest = messages[0];
+          
+          if (!initialized) {
+            // First run: just capture the latest message ID without toasting
+            lastMsgId = newest.id;
+            initialized = true;
+          } else if (newest.id !== lastMsgId) {
+            lastMsgId = newest.id;
+            
+            // Trigger toast
+            setActiveToast({
+              id: newest.id,
+              type: newest.type,
+              recipient: newest.recipient,
+              subject: newest.subject,
+              message: newest.message,
+              timestamp: newest.timestamp
+            });
+          }
+        } else {
+          initialized = true;
+        }
+      } catch (err) {
+        console.warn("Failed to poll mock outbox:", err);
+      }
+    };
+
+    pollOutbox();
+    const interval = setInterval(pollOutbox, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Active Chats (Shared between Mobile & Admin)
   const [chats, setChats] = useState([]);
@@ -927,6 +957,107 @@ export default function App() {
           />
         </div>
 
+        {/* Real-time Mock SMS/Email Toast Banner */}
+        {activeToast && (
+          <div 
+            className="fade-in"
+            style={{
+              position: "fixed",
+              top: "16px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "90%",
+              maxWidth: "400px",
+              backgroundColor: "rgba(43, 27, 18, 0.95)",
+              color: "#FFF6E9",
+              borderLeft: activeToast.type === "sms" ? "4px solid var(--temple-gold)" : "4px solid var(--orange-accent)",
+              borderRadius: "8px",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.35)",
+              padding: "14px 16px",
+              zIndex: 10000,
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              backdropFilter: "blur(8px)",
+              fontFamily: "var(--font-body)"
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px", color: "var(--temple-gold)", display: "flex", alignItems: "center", gap: "6px" }}>
+                {activeToast.type === "sms" ? "💬 New SMS Notification" : "✉️ New Email Notification"}
+              </span>
+              <button 
+                onClick={() => setActiveToast(null)}
+                style={{ background: "none", border: "none", color: "#FFF6E9", opacity: 0.7, cursor: "pointer", fontSize: "12px", fontWeight: "800" }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ fontSize: "10px", opacity: 0.8, fontWeight: "600" }}>
+              To: {activeToast.recipient}
+            </div>
+            
+            {activeToast.type === "email" && (
+              <div style={{ fontSize: "11px", fontWeight: "800", color: "#FFF" }}>
+                Subject: {activeToast.subject}
+              </div>
+            )}
+            
+            <div style={{ 
+              fontSize: "11px", 
+              lineHeight: "1.4", 
+              backgroundColor: "rgba(255,255,255,0.06)", 
+              padding: "8px 10px", 
+              borderRadius: "4px",
+              whiteSpace: "pre-line",
+              maxHeight: "120px",
+              overflowY: "auto",
+              margin: "4px 0"
+            }}>
+              {activeToast.message}
+            </div>
+
+            {/* Quick Copy Profile ID / OTP helper */}
+            {(() => {
+              const otpMatch = activeToast.message.match(/\b\d{6}\b/);
+              const idMatch = activeToast.message.match(/DEV-AST-\d{5}/);
+              
+              if (otpMatch || idMatch) {
+                return (
+                  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "2px" }}>
+                    {idMatch && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(idMatch[0]);
+                          alert(`Copied Profile ID: ${idMatch[0]}`);
+                        }}
+                        className="btn-secondary"
+                        style={{ padding: "4px 8px", fontSize: "10px", borderColor: "rgba(255,255,255,0.2)", color: "#fff" }}
+                      >
+                        📋 Copy ID: {idMatch[0]}
+                      </button>
+                    )}
+                    {otpMatch && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(otpMatch[0]);
+                          alert(`Copied OTP: ${otpMatch[0]}`);
+                        }}
+                        className="btn-primary"
+                        style={{ padding: "4px 8px", fontSize: "10px" }}
+                      >
+                        📋 Copy OTP: {otpMatch[0]}
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
+        )}
+
         {/* View Switchers & Translation Toggles */}
         <div className="header-controls">
           {/* Theme Switcher */}
@@ -937,6 +1068,30 @@ export default function App() {
             title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
           >
             {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+
+          {/* View Mode Switcher Toggle */}
+          <button 
+            onClick={() => setSimulatorView(simulatorView === "mobile" ? "admin" : "mobile")}
+            className="btn-secondary"
+            style={{ 
+              borderRadius: "18px", 
+              height: "36px", 
+              padding: "0 14px", 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "6px",
+              border: "1px solid var(--temple-gold)",
+              color: "var(--temple-gold)",
+              fontWeight: "700",
+              fontSize: "11px",
+              background: "transparent",
+              cursor: "pointer"
+            }}
+            title={simulatorView === "mobile" ? "Switch to Admin Dashboard" : "Switch to Astrologer Mobile"}
+          >
+            <ShieldCheck size={14} />
+            <span>{simulatorView === "mobile" ? "Admin Panel" : "Astro App"}</span>
           </button>
 
           {/* Language Switcher */}
@@ -1108,7 +1263,7 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => {
-                        const newUrl = prompt("Enter backend API base URL:", localStorage.getItem("devsetu_api_base") || "http://10.198.94.249:5000");
+                        const newUrl = prompt("Enter backend API base URL:", localStorage.getItem("devsetu_api_base") || "https://devsetu-4wav.onrender.com");
                         if (newUrl !== null) {
                           localStorage.setItem("devsetu_api_base", newUrl.trim());
                           alert("API URL updated! Reloading app...");

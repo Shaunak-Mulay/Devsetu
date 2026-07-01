@@ -113,9 +113,10 @@ button, input, select, textarea {
 
 /* App Containers */
 .devsetu-workspace {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .workspace-header {
@@ -172,7 +173,6 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   background-color: var(--bg-app);
-  height: 100vh;
   overflow: hidden;
 }
 
@@ -191,8 +191,6 @@ button, input, select, textarea {
 @media (max-width: 1024px) {
   .workspace-body {
     flex-direction: column;
-    overflow-y: auto;
-    height: 100vh;
   }
   .workspace-body.show-admin .phone-column {
     display: none !important;
