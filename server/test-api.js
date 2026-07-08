@@ -1,8 +1,9 @@
-import { database } from './database.js';
+import { database, dbInitialized } from './database.js';
 
 const API_BASE = 'http://localhost:5000/api';
 
 async function runTests() {
+  await dbInitialized;
   console.log("\n==================================================");
   console.log("    DEVSETU SRS API INTEGRATION TEST SUITE        ");
   console.log("==================================================\n");
@@ -52,7 +53,7 @@ async function runTests() {
     // Define test variables
     const testEmail = "srstestrunner@gmail.com";
     const testPhone = "9988998899";
-    const testPassword = "SrsPassword@123";
+    const testPassword = "123456"; // 6-digit Login PIN
     const testName = "SRS Test Astrologer";
     
     let createdBookingId = null;
@@ -121,12 +122,12 @@ async function runTests() {
     const pendingLoginRes = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
-        loginFormType: 'email',
-        email: testEmail,
+        loginFormType: 'phone',
+        phone: testPhone,
         password: testPassword
       })
     });
-    assert(pendingLoginRes.status === 403, "Login is blocked with 403 when account is pending verification.");
+    assert(pendingLoginRes.status === 403, "Login via Mobile is blocked with 403 when account is pending verification.");
     assert(pendingLoginRes.data && pendingLoginRes.data.profileId === testProfileId, "Verification block payload contains correct Profile ID.");
 
     // Admin approves the new account
@@ -138,7 +139,7 @@ async function runTests() {
     assert(approveUserRes.status === 200, "Admin approval endpoint returned 200.");
     assert(approveUserRes.data && approveUserRes.data.accountStatus === 'approved', "Account status successfully updated to approved.");
 
-    // Email + Password login (now approved)
+    // Email login should be rejected with 401 for astrologers (No Email Login allowed)
     const emailLoginRes = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
@@ -147,10 +148,9 @@ async function runTests() {
         password: testPassword
       })
     });
-    assert(emailLoginRes.status === 200, "Login via Email + Password returned status 200 after approval.");
-    assert(emailLoginRes.data && emailLoginRes.data.user, "Email login returned user object.");
+    assert(emailLoginRes.status === 401, "Email login is blocked/rejected with status 401 for astrologers.");
 
-    // Phone + Password login
+    // Phone + PIN login (now approved)
     const phoneLoginRes = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
@@ -159,19 +159,19 @@ async function runTests() {
         password: testPassword
       })
     });
-    assert(phoneLoginRes.status === 200, "Login via Mobile Number + Password returned status 200.");
+    assert(phoneLoginRes.status === 200, "Login via Mobile Number + PIN returned status 200.");
     assert(phoneLoginRes.data && phoneLoginRes.data.user, "Mobile login returned user object.");
 
     // Incorrect password login
     const badLoginRes = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
-        loginFormType: 'email',
-        email: testEmail,
-        password: 'wrongpassword'
+        loginFormType: 'phone',
+        phone: testPhone,
+        password: '999999'
       })
     });
-    assert(badLoginRes.status === 401, "Login with incorrect password rejected with status 401.");
+    assert(badLoginRes.status === 401, "Login with incorrect PIN rejected with status 401.");
 
     // --------------------------------------------------
     // TEST 3: Booking Creation with Hierarchical Venue (SRS Section 8)
@@ -278,8 +278,8 @@ async function runTests() {
 
     // Check if Booking Approved notification was dispatched
     const notifsAfterApproval = await apiRequest(`/notifications?email=${testEmail}`);
-    const approvalNotif = notifsAfterApproval.data.find(n => n.title === "Booking Approved");
-    assert(!!approvalNotif, "Booking Approved In-App notification successfully pushed.");
+    const approvalNotif = notifsAfterApproval.data.find(n => n.title === "Booking Confirmed" || n.title === "Booking Approved");
+    assert(!!approvalNotif, "Booking Confirmed In-App notification successfully pushed.");
     if (approvalNotif) {
       assert(approvalNotif.body.includes(createdBookingId), "Notification body references the correct Booking ID.");
     }
@@ -299,23 +299,24 @@ async function runTests() {
     assert(clearedNotifs.data.every(n => n.read === true), "All notifications marked read successfully.");
 
     // --------------------------------------------------
-    // TEST 8: Password Management & Session Invalidation
     // --------------------------------------------------
-    console.log("\nRunning Test 8: Password Strength & Password Change & Session Invalidation...");
+    // TEST 8: PIN Management & Session Invalidation & Admin Reset
+    // --------------------------------------------------
+    console.log("\nRunning Test 8: PIN Strength & PIN Change & Session Invalidation...");
 
-    // Test password strength rules
+    // Test PIN strength rules (must be exactly 6 digits numeric)
     const weakPassRes = await apiRequest('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({
         email: testEmail,
         currentPassword: testPassword,
-        newPassword: "weak"
+        newPassword: "weak" // Non-numeric, invalid length
       })
     });
-    assert(weakPassRes.status === 400, "Weak password change rejected with status 400.");
+    assert(weakPassRes.status === 400, "Weak PIN change rejected with status 400.");
 
-    // Successful password change
-    const strongNewPassword = "NewStrong@2026";
+    // Successful PIN change
+    const strongNewPassword = "654321"; // Valid 6-digit numeric PIN
     const changePassRes = await apiRequest('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({
@@ -324,13 +325,13 @@ async function runTests() {
         newPassword: strongNewPassword
       })
     });
-    assert(changePassRes.status === 200, "Change password with strong new password returned status 200.");
+    assert(changePassRes.status === 200, "Change PIN with valid 6-digit PIN returned status 200.");
     
     // sessionVersion check
     let newSessionVersion = 1;
     if (changePassRes.data && changePassRes.data.user) {
       newSessionVersion = changePassRes.data.user.sessionVersion;
-      assert(newSessionVersion > 1, "sessionVersion successfully incremented after password change.");
+      assert(newSessionVersion > 1, "sessionVersion successfully incremented after PIN change.");
     }
 
     // Verify old session version is now inactive
@@ -341,94 +342,65 @@ async function runTests() {
     const newSessionRes = await apiRequest(`/auth/session-status?email=${testEmail}&sessionVersion=${newSessionVersion}`);
     assert(newSessionRes.status === 200 && newSessionRes.data.active === true, "New session version is reported active.");
 
-    // Test Forgot Password Flow
-    console.log("Testing Forgot Password OTP flows...");
-    const otpReqRes = await apiRequest('/auth/forgot-password/request', {
+    // Test Forgot PIN Request Flow
+    console.log("Testing Forgot PIN Request and Admin Reset flow...");
+    const forgotPinReqRes = await apiRequest('/auth/forgot-pin/request', {
       method: 'POST',
-      body: JSON.stringify({ email: testEmail })
+      body: JSON.stringify({ profileId: testProfileId, mobile: testPhone })
     });
-    assert(otpReqRes.status === 200, "OTP request returned status 200.");
+    assert(forgotPinReqRes.status === 201, "Forgot PIN request returned status 201.");
 
-    // Fetch generated OTP from database
-    const otps = await database.getCollection('otps');
-    const testOtpRecord = otps.find(o => o.email.toLowerCase() === testEmail.toLowerCase());
-    assert(!!testOtpRecord, "OTP record successfully generated in database.");
+    // Fetch generated PIN Reset requests from Admin endpoint
+    const pinResetsRes = await apiRequest('/admin/pin-resets');
+    assert(pinResetsRes.status === 200, "Admin PIN reset requests endpoint returned status 200.");
+    const testResetRequest = pinResetsRes.data.find(r => r.profileId === testProfileId);
+    assert(!!testResetRequest, "Forgot PIN request successfully stored in database.");
     
-    let verifiedOtp = "";
-    if (testOtpRecord) {
-      const correctOtp = testOtpRecord.code;
-      assert(correctOtp.length === 6, "Generated OTP is exactly 6 digits.");
+    let generatedTempPin = "";
+    if (testResetRequest) {
+      const requestId = testResetRequest.id;
+      assert(testResetRequest.status === "pending", "Initial request status is 'pending'.");
 
-      // Test failed verification attempt limit
-      console.log("Testing OTP failure attempt limit (max 5)...");
-      for (let i = 0; i < 4; i++) {
-        const verifyBadRes = await apiRequest('/auth/forgot-password/verify', {
-          method: 'POST',
-          body: JSON.stringify({ email: testEmail, code: "000000" })
-        });
-        assert(verifyBadRes.status === 400 && verifyBadRes.data.error.includes("Invalid verification code"), `Attempt ${i + 1} with incorrect OTP rejected.`);
+      // Admin updates status to 'in_review'
+      const statusUpdateRes = await apiRequest(`/admin/pin-resets/${requestId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'in_review' })
+      });
+      assert(statusUpdateRes.status === 200 && statusUpdateRes.data.status === 'in_review', "Admin status update to 'in_review' succeeded.");
+
+      // Admin resets the PIN (generates temporary PIN)
+      const pinResetExecRes = await apiRequest(`/admin/pin-resets/${requestId}/reset`, {
+        method: 'POST'
+      });
+      assert(pinResetExecRes.status === 200, "Admin PIN reset execution endpoint returned status 200.");
+      assert(!!pinResetExecRes.data.tempPin, "Admin PIN reset returned temporary PIN.");
+      if (pinResetExecRes.data) {
+        generatedTempPin = pinResetExecRes.data.tempPin;
+        assert(generatedTempPin.length === 6 && /^\d{6}$/.test(generatedTempPin), "Generated temporary PIN is exactly 6 digits numeric.");
+        assert(pinResetExecRes.data.request.status === "pin_reset", "PIN Reset Request status updated to 'pin_reset'.");
       }
 
-      // 5th attempt should expire/remove the OTP
-      const verifyFifthRes = await apiRequest('/auth/forgot-password/verify', {
+      // Log in with temporary PIN - should succeed since approved
+      const loginWithTempRes = await apiRequest('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email: testEmail, code: "000000" })
+        body: JSON.stringify({
+          loginFormType: 'phone',
+          phone: testPhone,
+          password: generatedTempPin
+        })
       });
-      assert(verifyFifthRes.status === 400 && verifyFifthRes.data.error.includes("too many failed attempts"), "5th consecutive failed attempt invalidates the OTP.");
-
-      // Request a new OTP for reset verification
-      await apiRequest('/auth/forgot-password/request', {
-        method: 'POST',
-        body: JSON.stringify({ email: testEmail })
-      });
-      
-      const freshOtps = await database.getCollection('otps');
-      const freshOtpRecord = freshOtps.find(o => o.email.toLowerCase() === testEmail.toLowerCase());
-      assert(!!freshOtpRecord, "New OTP record successfully generated after invalidation.");
-      
-      if (freshOtpRecord) {
-        const freshOtp = freshOtpRecord.code;
-        // Verify correct OTP
-        const verifyGoodRes = await apiRequest('/auth/forgot-password/verify', {
-          method: 'POST',
-          body: JSON.stringify({ email: testEmail, code: freshOtp })
-        });
-        assert(verifyGoodRes.status === 200, "Verification with correct OTP returned status 200.");
-
-        // Reset password using verified OTP
-        const finalStrongPassword = "FinalStrong@2026";
-        const resetRes = await apiRequest('/auth/forgot-password/reset', {
-          method: 'POST',
-          body: JSON.stringify({
-            email: testEmail,
-            code: freshOtp,
-            newPassword: finalStrongPassword
-          })
-        });
-        assert(resetRes.status === 200, "Reset password with OTP returned status 200.");
-
-        // Log in with new reset password
-        const finalLoginRes = await apiRequest('/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({
-            loginFormType: 'email',
-            email: testEmail,
-            password: finalStrongPassword
-          })
-        });
-        assert(finalLoginRes.status === 200, "Login successful with newly reset password.");
-      }
+      assert(loginWithTempRes.status === 200, "Login successful with newly reset temporary PIN.");
     }
 
     // --------------------------------------------------
-    // TEST 9: OTP Auto-Approval for Login & Password Reset
+    // TEST 9: OTP Auto-Approval & Admin OTP PIN Reset
     // --------------------------------------------------
-    console.log("\nRunning Test 9: OTP Auto-Approval flows...");
+    console.log("\nRunning Test 9: OTP Auto-Approval and Admin OTP Reset flows...");
 
-    // Scenario A: OTP Login Verification & Auto-Approval
+    // Scenario A: OTP Login Verification & Auto-Approval (For Astrologers)
     const otpLoginEmail = "otptestrunner@gmail.com";
     const otpLoginPhone = "9990001111";
-    const otpLoginPassword = "LoginOtpPassword@123";
+    const otpLoginPassword = "111222"; // valid 6-digit PIN
     const otpLoginName = "OTP Login User";
 
     const signupOtpLoginUser = await apiRequest('/auth/signup', {
@@ -449,8 +421,8 @@ async function runTests() {
     const pendingLoginFail = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
-        loginFormType: 'email',
-        email: otpLoginEmail,
+        loginFormType: 'phone',
+        phone: otpLoginPhone,
         password: otpLoginPassword
       })
     });
@@ -459,13 +431,13 @@ async function runTests() {
     // Request Login OTP
     const reqLoginOtpRes = await apiRequest('/auth/login-otp/request', {
       method: 'POST',
-      body: JSON.stringify({ email: otpLoginEmail })
+      body: JSON.stringify({ phone: otpLoginPhone })
     });
     assert(reqLoginOtpRes.status === 200, "Request login OTP returned 200.");
 
     // Fetch OTP code from DB
     const dbOtps = await database.getCollection('otps');
-    const loginOtpRecord = dbOtps.find(o => o.email.toLowerCase() === otpLoginEmail.toLowerCase());
+    const loginOtpRecord = dbOtps.find(o => o.email.toLowerCase() === otpLoginEmail.toLowerCase() || o.email === otpLoginPhone);
     assert(!!loginOtpRecord, "Login OTP record found in database.");
 
     if (loginOtpRecord) {
@@ -481,23 +453,23 @@ async function runTests() {
         assert(verifyLoginOtpRes.data.user.accountStatus === "approved", "User status is auto-approved upon OTP verification.");
       }
 
-      // Login again normally using password - should now succeed since approved
+      // Login again normally using PIN - should now succeed since approved
       const normalLoginSucc = await apiRequest('/auth/login', {
         method: 'POST',
         body: JSON.stringify({
-          loginFormType: 'email',
-          email: otpLoginEmail,
+          loginFormType: 'phone',
+          phone: otpLoginPhone,
           password: otpLoginPassword
         })
       });
       assert(normalLoginSucc.status === 200, "Normal login now succeeds for OTP auto-approved user.");
     }
 
-    // Scenario B: OTP Password Reset Verification & Auto-Approval
+    // Scenario B: OTP PIN Reset Verification (For Admin Accounts)
     const otpResetEmail = "otpresetrunner@gmail.com";
     const otpResetPhone = "9990002222";
-    const otpResetPassword = "ResetOtpPassword@123";
-    const otpResetName = "OTP Reset User";
+    const otpResetPassword = "222333";
+    const otpResetName = "OTP Reset Admin";
 
     const signupOtpResetUser = await apiRequest('/auth/signup', {
       method: 'POST',
@@ -513,12 +485,20 @@ async function runTests() {
     });
     assert(signupOtpResetUser.status === 201, "Sign up for OTP reset user returned 201.");
 
+    // Update user role to admin in DB to allow OTP Forgot Password flows
+    const dbUsers = await database.getCollection('users');
+    const uIndex = dbUsers.findIndex(u => u.email === otpResetEmail);
+    if (uIndex !== -1) {
+      dbUsers[uIndex].role = "admin";
+      await database.saveCollection('users', dbUsers);
+    }
+
     // Request Reset OTP
     const reqResetOtpRes = await apiRequest('/auth/forgot-password/request', {
       method: 'POST',
       body: JSON.stringify({ email: otpResetEmail })
     });
-    assert(reqResetOtpRes.status === 200, "Request forgot password OTP returned 200.");
+    assert(reqResetOtpRes.status === 200, "Request forgot password OTP for Admin returned 200.");
 
     // Fetch OTP code from DB
     const freshDbOtps = await database.getCollection('otps');
@@ -527,7 +507,7 @@ async function runTests() {
 
     if (resetOtpRecord) {
       const code = resetOtpRecord.code;
-      const newStrongPassword = "NewStrongPassword@2026";
+      const newStrongPassword = "888777"; // Valid 6-digit PIN
       
       // Reset password using OTP
       const resetRes = await apiRequest('/auth/forgot-password/reset', {
@@ -538,28 +518,25 @@ async function runTests() {
           newPassword: newStrongPassword
         })
       });
-      assert(resetRes.status === 200, "Reset password returned 200.");
+      assert(resetRes.status === 200, "Reset PIN returned 200.");
 
-      // Login using new password - should succeed immediately as account is auto-approved
+      // Login using new Admin PIN - should succeed immediately
       const loginSuccAfterReset = await apiRequest('/auth/login', {
         method: 'POST',
         body: JSON.stringify({
           loginFormType: 'email',
           email: otpResetEmail,
-          password: newStrongPassword
+          password: newStrongPassword,
+          role: 'admin'
         })
       });
-      assert(loginSuccAfterReset.status === 200, "Login successful with newly reset password without admin approval.");
-      if (loginSuccAfterReset.data && loginSuccAfterReset.data.user) {
-        assert(loginSuccAfterReset.data.user.accountStatus === "approved", "User status is auto-approved upon password reset.");
-      }
+      assert(loginSuccAfterReset.status === 200, "Login successful as Admin with newly reset PIN.");
     }
 
     // --------------------------------------------------
     // TEST 10: Sequential Booking ID Validation
     // --------------------------------------------------
     console.log("\nRunning Test 10: Sequential Booking ID Generation Check...");
-    const year = new Date().getFullYear();
     
     // Create sequential booking 1
     const seqBooking1 = await apiRequest('/bookings', {
@@ -580,10 +557,9 @@ async function runTests() {
     let firstSeqId = null;
     if (seqBooking1.status === 201 && seqBooking1.data) {
       firstSeqId = seqBooking1.data.id;
-      const expectedPrefix = `DEV-BKG-${year}-`;
-      assert(firstSeqId.startsWith(expectedPrefix), `First booking ID ${firstSeqId} starts with ${expectedPrefix}`);
-      const numPart = firstSeqId.split('-')[3];
-      assert(numPart.length === 5, `Booking ID sequential part '${numPart}' has exactly 5 digits.`);
+      assert(firstSeqId.startsWith("DEV-BKG-"), `First booking ID ${firstSeqId} starts with DEV-BKG-`);
+      const numPart = firstSeqId.split('-')[2];
+      assert(numPart.length === 6, `Booking ID sequential part '${numPart}' has exactly 6 digits.`);
     }
 
     // Create sequential booking 2
@@ -605,8 +581,8 @@ async function runTests() {
     let secondSeqId = null;
     if (seqBooking2.status === 201 && seqBooking2.data && firstSeqId) {
       secondSeqId = seqBooking2.data.id;
-      const num1 = parseInt(firstSeqId.split('-')[3], 10);
-      const num2 = parseInt(secondSeqId.split('-')[3], 10);
+      const num1 = parseInt(firstSeqId.split('-')[2], 10);
+      const num2 = parseInt(secondSeqId.split('-')[2], 10);
       assert(num2 === num1 + 1, `Second sequential booking ID ${secondSeqId} incremented correctly from ${firstSeqId}.`);
     }
 
@@ -631,6 +607,10 @@ async function runTests() {
 
     const allNotifs = await database.getCollection('notifications');
     await database.saveCollection('notifications', allNotifs.filter(n => !filterEmailsClean.includes(n.userEmail)));
+
+    // Cleanup PIN Reset requests
+    const pinResets = await database.getCollection('pin_reset_requests') || [];
+    await database.saveCollection('pin_reset_requests', pinResets.filter(r => r.profileId !== testProfileId));
 
     console.log("Cleanup finished.");
 

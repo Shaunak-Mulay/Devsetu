@@ -67,8 +67,8 @@ async function cleanDatabase() {
     // Reset users collection and seed the Admin account
     console.log("[7/7] Resetting users to Admin account...");
     const adminEmail = process.env.ADMIN_EMAIL || "devsetuconnect@gmail.com";
-    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
-    const { salt: adminSalt, hash: adminHash } = hashPassword(adminPassword);
+    const adminPin = process.env.ADMIN_PIN || "123456";
+    const { salt: adminSalt, hash: adminHash } = hashPassword(adminPin);
 
     const adminUser = {
       adminId: "ADM00001",
@@ -84,29 +84,36 @@ async function cleanDatabase() {
       sessionVersion: 1
     };
 
+    const { salt: astro1Salt, hash: astro1Hash } = hashPassword("123456");
     const defaultAstro1 = {
-      profileId: "DEV-AST-00001",
+      profileId: "DEV-AST-000001",
       name: "Shaunak Mulay",
       email: "shaunakmulay19@gmail.com",
       phone: "8698378379",
-      password: "password123",
+      mobile: "8698378379",
+      password: astro1Hash,
+      salt: astro1Salt,
       accountStatus: "approved",
       role: "astrologer",
       sessionVersion: 1
     };
 
+    const { salt: astro2Salt, hash: astro2Hash } = hashPassword("123456");
     const defaultAstro2 = {
-      profileId: "DEV-AST-00002",
+      profileId: "DEV-AST-000002",
       name: "Verification Astro",
       email: "verifyastro@gmail.com",
       phone: "9876543210",
-      password: "password123",
+      mobile: "9876543210",
+      password: astro2Hash,
+      salt: astro2Salt,
       accountStatus: "approved",
       role: "astrologer",
       sessionVersion: 1
     };
 
     await database.saveCollection('users', [adminUser, defaultAstro1, defaultAstro2]);
+    await database.saveCollection('pin_reset_requests', []);
 
     console.log("\n[SUCCESS] Database cleanup and Admin seeding finished successfully!");
     process.exit(0);

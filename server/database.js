@@ -19,7 +19,7 @@ let db = null;
 let useFirebase = false;
 
 // Attempt to connect to Google Cloud Firestore (Firebase)
-if (fs.existsSync(serviceAccountPath)) {
+if (fs.existsSync(serviceAccountPath) && process.env.USE_LOCAL_DB !== 'true') {
   try {
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf-8'));
     const initOptions = {
@@ -52,7 +52,13 @@ function hashPassword(password, salt) {
 
 const adminEmail = process.env.ADMIN_EMAIL || "devsetuconnect@gmail.com";
 const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
-const { salt: adminSalt, hash: adminHash } = hashPassword(adminPassword);
+const adminPin = process.env.ADMIN_PIN || "123456";
+// Hash admin credentials
+const { salt: adminSalt, hash: adminHash } = hashPassword(adminPin);
+
+// Hash astrologer default PINs (123456)
+const { salt: astro1Salt, hash: astro1Hash } = hashPassword("123456");
+const { salt: astro2Salt, hash: astro2Hash } = hashPassword("123456");
 
 const defaultData = {
   users: [
@@ -70,21 +76,25 @@ const defaultData = {
       sessionVersion: 1
     },
     {
-      profileId: "DEV-AST-00001",
+      profileId: "DEV-AST-000001",
       name: "Shaunak Mulay",
       email: "shaunakmulay19@gmail.com",
       phone: "8698378379",
-      password: "password123",
+      mobile: "8698378379",
+      password: astro1Hash,
+      salt: astro1Salt,
       accountStatus: "approved",
       role: "astrologer",
       sessionVersion: 1
     },
     {
-      profileId: "DEV-AST-00002",
+      profileId: "DEV-AST-000002",
       name: "Verification Astro",
       email: "verifyastro@gmail.com",
       phone: "9876543210",
-      password: "password123",
+      mobile: "9876543210",
+      password: astro2Hash,
+      salt: astro2Salt,
       accountStatus: "approved",
       role: "astrologer",
       sessionVersion: 1
@@ -114,7 +124,8 @@ const defaultData = {
     }
   ],
   otps: [],
-  audit_logs: []
+  audit_logs: [],
+  pin_reset_requests: []
 };
 
 
@@ -166,6 +177,12 @@ const initDb = async () => {
           await db.collection('notifications').doc(n.id).set(n);
         }
       }
+
+      // Seed Pin Reset Requests if empty
+      const pinResetsSnap = await db.collection('pin_reset_requests').limit(1).get();
+      if (pinResetsSnap.empty) {
+        console.log('[Database] Seeding empty pin_reset_requests to Cloud Firestore...');
+      }
       console.log('[Database] Cloud Firestore initialized and seeded successfully.');
     } catch (err) {
       console.error('[Database] Failed to seed Cloud Firestore collections', err);
@@ -180,12 +197,24 @@ const initDb = async () => {
         console.error('[Database] Failed to create local database.json file', err);
       }
     } else {
-      // Ensure existing database.json has notifications key
+      // Ensure existing database.json has notifications and pin_reset_requests keys
       try {
         const data = fs.readFileSync(dbPath, 'utf-8');
         const dbJson = JSON.parse(data);
+        let updated = false;
         if (!dbJson.notifications) {
           dbJson.notifications = defaultData.notifications;
+          updated = true;
+        }
+        if (!dbJson.pin_reset_requests) {
+          dbJson.pin_reset_requests = [];
+          updated = true;
+        }
+        if (!dbJson.audit_logs) {
+          dbJson.audit_logs = [];
+          updated = true;
+        }
+        if (updated) {
           fs.writeFileSync(dbPath, JSON.stringify(dbJson, null, 2), 'utf-8');
         }
       } catch (err) {
@@ -195,8 +224,8 @@ const initDb = async () => {
   }
 };
 
-// Run schema initialization asynchronously
-initDb();
+// Run schema initialization and export the promise for synchronization
+export const dbInitialized = initDb();
 
 export const database = {
   getCollection: async (key) => {
@@ -232,16 +261,16 @@ export const database = {
   },
 
   saveCollection: async (key, collection) => {
+    console.log(`[DEBUG DATABASE] saveCollection start for key: ${key}, size: ${collection.length}`);
     if (useFirebase) {
       try {
-        const batch = db.batch();
-        
-        // Get all current document IDs in the remote Firestore collection
+        console.log(`[DEBUG DATABASE] saveCollection fetching snapshot for key: ${key}`);
         const snapshot = await db.collection(key).get();
         const currentIds = new Set(snapshot.docs.map(doc => doc.id));
+        console.log(`[DEBUG DATABASE] saveCollection fetched snapshot for key: ${key}, current size: ${currentIds.size}`);
         
-        // Track the document IDs we are saving/updating
         const nextIds = new Set();
+        const promises = [];
         
         collection.forEach(item => {
           const docId = (key === 'users') 
@@ -254,19 +283,20 @@ export const database = {
             return;
           }
           const ref = db.collection(key).doc(docId);
-          batch.set(ref, item);
+          promises.push(ref.set(item));
           nextIds.add(docId);
         });
         
-        // Delete documents that exist in Firestore but are not in the new collection list
         currentIds.forEach(id => {
           if (!nextIds.has(id)) {
             const ref = db.collection(key).doc(id);
-            batch.delete(ref);
+            promises.push(ref.delete());
           }
         });
         
-        await batch.commit();
+        console.log(`[DEBUG DATABASE] saveCollection executing Promise.all for key: ${key}`);
+        await Promise.all(promises);
+        console.log(`[DEBUG DATABASE] saveCollection executed Promise.all successfully for key: ${key}`);
         return true;
       } catch (err) {
         console.error(`[Database] Error saving collection ${key} to Cloud Firestore`, err);
