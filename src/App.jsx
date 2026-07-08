@@ -347,6 +347,18 @@ export default function App() {
   // Admin audit logs state
   const [auditLogs, setAuditLogs] = useState([]);
 
+  // Admin SMTP & Email Logs state
+  const [emailLogs, setEmailLogs] = useState([]);
+  const [emailLogSearch, setEmailLogSearch] = useState("");
+  const [emailLogStatusFilter, setEmailLogStatusFilter] = useState("All");
+  const [emailLogTemplateFilter, setEmailLogTemplateFilter] = useState("All");
+  const [smtpHealth, setSmtpHealth] = useState(null);
+  const [smtpSettings, setSmtpSettings] = useState(null);
+  const [testEmailTarget, setTestEmailTarget] = useState("");
+  const [isCheckingSmtpHealth, setIsCheckingSmtpHealth] = useState(false);
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [resendingLogId, setResendingLogId] = useState(null);
+
   // Login OTP States (for pending account auto-approval verification)
   const [showLoginOtp, setShowLoginOtp] = useState(false);
   const [loginOtpCode, setLoginOtpCode] = useState("");
@@ -650,6 +662,30 @@ export default function App() {
           }
         } catch (e) {
           console.warn("Failed to fetch admin audit logs");
+        }
+        try {
+          const emailLogsRes = await fetch(`${API_BASE}/api/admin/email-logs`);
+          if (emailLogsRes.ok) {
+            setEmailLogs(await emailLogsRes.json());
+          }
+        } catch (e) {
+          console.warn("Failed to fetch email logs");
+        }
+        try {
+          const smtpSetRes = await fetch(`${API_BASE}/api/admin/smtp/settings`);
+          if (smtpSetRes.ok) {
+            setSmtpSettings(await smtpSetRes.json());
+          }
+        } catch (e) {
+          console.warn("Failed to fetch SMTP settings");
+        }
+        try {
+          const smtpHealthRes = await fetch(`${API_BASE}/api/admin/smtp/health`);
+          if (smtpHealthRes.ok) {
+            setSmtpHealth(await smtpHealthRes.json());
+          }
+        } catch (e) {
+          console.warn("Failed to fetch SMTP health status");
         }
       }
 
@@ -4876,6 +4912,39 @@ Please generate a temporary PIN. Thank you.`}
                 <span>Audit Trails Log</span>
               </button>
 
+              <button 
+                onClick={() => {
+                  setAdminTab("email-logs");
+                  fetch(`${API_BASE}/api/admin/email-logs`)
+                    .then(res => res.json())
+                    .then(data => setEmailLogs(data))
+                    .catch(e => console.warn(e));
+                }} 
+                className={`admin-sidebar-item ${adminTab === "email-logs" ? "active" : ""}`}
+              >
+                <span style={{ fontSize: "16px", marginRight: "8px" }}>✉️</span>
+                <span>SMTP Email Logs</span>
+              </button>
+
+              <button 
+                onClick={() => {
+                  setAdminTab("email-settings");
+                  // Fetch settings & health immediately
+                  fetch(`${API_BASE}/api/admin/smtp/settings`)
+                    .then(res => res.json())
+                    .then(data => setSmtpSettings(data))
+                    .catch(e => console.warn(e));
+                  fetch(`${API_BASE}/api/admin/smtp/health`)
+                    .then(res => res.json())
+                    .then(data => setSmtpHealth(data))
+                    .catch(e => console.warn(e));
+                }} 
+                className={`admin-sidebar-item ${adminTab === "email-settings" ? "active" : ""}`}
+              >
+                <span style={{ fontSize: "16px", marginRight: "8px" }}>⚙️</span>
+                <span>SMTP & Notification Settings</span>
+              </button>
+
               <div style={{ marginTop: "auto", padding: "16px 24px", borderTop: "1px solid var(--border-color)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--text-muted)", fontWeight: "600" }}>
@@ -7046,6 +7115,324 @@ Please generate a temporary PIN. Thank you.`}
                         })()}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SMTP EMAIL LOGS PANEL */}
+              {adminTab === "email-logs" && (
+                <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "var(--card-bg)", padding: "16px", borderRadius: "12px", border: "1px solid var(--border-color)" }}>
+                    <h3 style={{ fontFamily: "var(--font-heading)", margin: 0 }}>✉️ SMTP Email Logs</h3>
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                      <input 
+                        type="text" 
+                        placeholder="Search by Recipient or Subject..." 
+                        className="form-input" 
+                        value={emailLogSearch}
+                        onChange={(e) => setEmailLogSearch(e.target.value)}
+                        style={{ width: "220px", fontSize: "12px", padding: "8px 12px" }} 
+                      />
+                      <select 
+                        value={emailLogTemplateFilter} 
+                        onChange={(e) => setEmailLogTemplateFilter(e.target.value)} 
+                        className="form-select"
+                        style={{ fontSize: "12px", padding: "8px 12px" }}
+                      >
+                        <option value="All">All Templates</option>
+                        <option value="registration_received">Welcome Registration</option>
+                        <option value="registration_approved">Registration Approved</option>
+                        <option value="registration_rejected">Registration Rejected</option>
+                        <option value="booking_confirmed">Booking Confirmed</option>
+                        <option value="payment_received">Payment Received</option>
+                        <option value="payment_verified">Payment Verified</option>
+                        <option value="booking_completed">Booking Completed</option>
+                        <option value="support_reply">Support Console Reply</option>
+                        <option value="generic">Generic Alert</option>
+                      </select>
+                      <select 
+                        value={emailLogStatusFilter} 
+                        onChange={(e) => setEmailLogStatusFilter(e.target.value)} 
+                        className="form-select"
+                        style={{ fontSize: "12px", padding: "8px 12px" }}
+                      >
+                        <option value="All">All Statuses</option>
+                        <option value="sent">Sent</option>
+                        <option value="failed">Failed</option>
+                      </select>
+                      <button 
+                        onClick={async () => {
+                          const res = await fetch(`${API_BASE}/api/admin/email-logs`);
+                          if (res.ok) setEmailLogs(await res.json());
+                        }}
+                        className="btn-secondary"
+                        style={{ padding: "8px 12px", fontSize: "12px" }}
+                      >
+                        🔄 Refresh
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="admin-table-wrapper" style={{ padding: "10px", borderRadius: "12px", border: "1px solid var(--border-color)", backgroundColor: "var(--card-bg)" }}>
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Log ID</th>
+                          <th>Timestamp</th>
+                          <th>Recipient</th>
+                          <th>Subject / Template</th>
+                          <th>Status</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const filtered = emailLogs.filter(log => {
+                            const matchSearch = !emailLogSearch || 
+                              (log.recipient && log.recipient.toLowerCase().includes(emailLogSearch.toLowerCase())) ||
+                              (log.subject && log.subject.toLowerCase().includes(emailLogSearch.toLowerCase()));
+                            
+                            const matchTemplate = emailLogTemplateFilter === "All" || log.template === emailLogTemplateFilter;
+                            const matchStatus = emailLogStatusFilter === "All" || log.status === emailLogStatusFilter;
+
+                            return matchSearch && matchTemplate && matchStatus;
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan="6" style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
+                                  No email transmission logs matching the current criteria.
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filtered.map(log => (
+                            <tr key={log.id}>
+                              <td><strong style={{ fontFamily: "monospace" }}>{log.id}</strong></td>
+                              <td>{formatDate(log.createdAt)}</td>
+                              <td><strong>{log.recipient}</strong></td>
+                              <td>
+                                <div style={{ fontWeight: "700" }}>{log.subject}</div>
+                                <span style={{ fontSize: "10px", backgroundColor: "var(--warm-cream-darker)", padding: "2px 6px", borderRadius: "4px", color: "var(--primary-brown)", fontFamily: "monospace" }}>
+                                  {log.template}
+                                </span>
+                              </td>
+                              <td>
+                                {log.status === "sent" ? (
+                                  <span style={{ backgroundColor: "#e8f5e9", color: "#2e7d32", padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold", border: "1px solid #c8e6c9" }}>
+                                    ✓ Sent
+                                  </span>
+                                ) : (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                    <span style={{ backgroundColor: "#ffebee", color: "#c62828", padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold", border: "1px solid #ffcdd2", width: "fit-content" }}>
+                                      ⚠ Failed
+                                    </span>
+                                    {log.errorMessage && (
+                                      <span style={{ fontSize: "9px", color: "var(--error)", maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={log.errorMessage}>
+                                        {log.errorMessage}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              <td>
+                                <button 
+                                  disabled={resendingLogId === log.id}
+                                  onClick={async () => {
+                                    setResendingLogId(log.id);
+                                    try {
+                                      const res = await fetch(`${API_BASE}/api/admin/email-logs/${log.id}/resend`, {
+                                        method: "POST"
+                                      });
+                                      const data = await res.json();
+                                      if (res.ok) {
+                                        alert("Email successfully resent!");
+                                        const logsRes = await fetch(`${API_BASE}/api/admin/email-logs`);
+                                        if (logsRes.ok) setEmailLogs(await logsRes.json());
+                                      } else {
+                                        alert("Resend failed: " + (data.error || "Unknown error"));
+                                      }
+                                    } catch (e) {
+                                      alert("Resend failed: " + e.message);
+                                    } finally {
+                                      setResendingLogId(null);
+                                    }
+                                  }}
+                                  className="btn-primary"
+                                  style={{ padding: "6px 12px", fontSize: "11px", display: "flex", alignItems: "center", gap: "4px" }}
+                                >
+                                  {resendingLogId === log.id ? "Resending..." : "🔁 Resend"}
+                                </button>
+                              </td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SMTP & NOTIFICATION SETTINGS PANEL */}
+              {adminTab === "email-settings" && (
+                <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <h3 style={{ fontFamily: "var(--font-heading)" }}>⚙️ SMTP & Notification Settings</h3>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", alignItems: "start" }}>
+                    
+                    {/* Left Panel: SMTP Health & Settings Toggle */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                      
+                      {/* Health Check Card */}
+                      <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                        <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px", margin: 0 }}>
+                          🩺 SMTP Relays Health Check
+                        </h4>
+                        
+                        {smtpHealth ? (
+                          <div style={{
+                            padding: "16px",
+                            borderRadius: "12px",
+                            backgroundColor: smtpHealth.status === "healthy" ? "rgba(46,125,50,0.05)" : "rgba(198,40,40,0.05)",
+                            border: `1px solid ${smtpHealth.status === "healthy" ? "var(--success)" : "var(--error)"}`,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "6px"
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "bold" }}>
+                              <span style={{ fontSize: "18px" }}>{smtpHealth.status === "healthy" ? "🟢" : "🔴"}</span>
+                              <span>SMTP Gateway: {smtpHealth.status === "healthy" ? "CONNECTED" : "OFFLINE / ERROR"}</span>
+                            </div>
+                            <p style={{ fontSize: "12px", margin: 0, color: "var(--text-muted)", lineHeight: "1.4" }}>
+                              {smtpHealth.message}
+                            </p>
+                          </div>
+                        ) : (
+                          <div style={{ padding: "12px", border: "1px dashed var(--border-color)", borderRadius: "8px", fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>
+                            No health check run yet. Click verify below to query connection.
+                          </div>
+                        )}
+
+                        <button 
+                          disabled={isCheckingSmtpHealth}
+                          onClick={async () => {
+                            setIsCheckingSmtpHealth(true);
+                            try {
+                              const res = await fetch(`${API_BASE}/api/admin/smtp/health`);
+                              if (res.ok) setSmtpHealth(await res.json());
+                            } catch (e) {
+                              setSmtpHealth({ status: 'unhealthy', message: e.message });
+                            } finally {
+                              setIsCheckingSmtpHealth(false);
+                            }
+                          }}
+                          className="btn-secondary"
+                          style={{ padding: "10px", fontSize: "13px", fontWeight: "700" }}
+                        >
+                          {isCheckingSmtpHealth ? "Verifying connection..." : "🔍 Run SMTP Health Check"}
+                        </button>
+                      </div>
+
+                      {/* Enable/Disable Toggle Card */}
+                      <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                        <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px", margin: 0 }}>
+                          📢 Email Alerts Toggle Control
+                        </h4>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0" }}>
+                          <div>
+                            <strong style={{ fontSize: "14px" }}>Enable Global Emails</strong>
+                            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0 0" }}>
+                              Toggle to allow/bypass all outgoing SMTP mail relays
+                            </p>
+                          </div>
+                          <label className="pref-toggle-container">
+                            <input 
+                              type="checkbox" 
+                              className="pref-toggle-input" 
+                              checked={!!(smtpSettings && smtpSettings.enabled)} 
+                              onChange={async (e) => {
+                                const nextVal = e.target.checked;
+                                try {
+                                  const res = await fetch(`${API_BASE}/api/admin/smtp/settings`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ enabled: nextVal })
+                                  });
+                                  if (res.ok) {
+                                    setSmtpSettings({ id: 'email_settings', enabled: nextVal });
+                                  }
+                                } catch (err) {
+                                  console.warn("Failed to toggle settings:", err);
+                                }
+                              }} 
+                            />
+                            <span className="pref-toggle-slider"></span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Panel: Send Test Email */}
+                    <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px", margin: 0 }}>
+                        ✈️ Dispatch SMTP Test Email
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: "1.4" }}>
+                        Send an instant test email containing DEVSETU HTML branding structure to verify your SMTP relay configurations are working properly.
+                      </p>
+                      
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!testEmailTarget) return;
+                        setIsSendingTestEmail(true);
+                        try {
+                          const res = await fetch(`${API_BASE}/api/admin/smtp/test`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ to: testEmailTarget })
+                          });
+                          const data = await res.json();
+                          if (res.ok) {
+                            alert("Test email dispatched successfully! Status: Sent");
+                            setTestEmailTarget("");
+                            // Reload logs
+                            const logsRes = await fetch(`${API_BASE}/api/admin/email-logs`);
+                            if (logsRes.ok) setEmailLogs(await logsRes.json());
+                          } else {
+                            alert("Failed to send test email: " + (data.error || "Unknown error"));
+                          }
+                        } catch (err) {
+                          alert("Failed: " + err.message);
+                        } finally {
+                          setIsSendingTestEmail(false);
+                        }
+                      }} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label">Recipient Email Address *</label>
+                          <input 
+                            type="email" 
+                            required 
+                            placeholder="e.g. shastri@devsetu.in" 
+                            className="form-input" 
+                            value={testEmailTarget}
+                            onChange={(e) => setTestEmailTarget(e.target.value)}
+                            style={{ fontSize: "13px" }}
+                          />
+                        </div>
+                        
+                        <button 
+                          type="submit" 
+                          disabled={isSendingTestEmail || !testEmailTarget}
+                          className="btn-primary"
+                          style={{ padding: "10px", fontSize: "13px", fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                        >
+                          {isSendingTestEmail ? "Sending test mail..." : "🚀 Dispatch Test Email"}
+                        </button>
+                      </form>
+                    </div>
+
                   </div>
                 </div>
               )}

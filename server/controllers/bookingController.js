@@ -182,16 +182,18 @@ export async function updateBookingStatus(req, res) {
 
     // Create and add status notifications
     const targetStatus = status.toLowerCase();
-    if (["approved", "cancelled", "rejected", "payment_verified", "submitted", "created"].includes(targetStatus)) {
-      const eventName = targetStatus === "approved" ? "Booking Approved" : (targetStatus === "payment_verified" ? "Booking Submitted" : "Booking Rejected");
-      const notifTitle = targetStatus === "approved" ? "Booking Confirmed" : (targetStatus === "payment_verified" ? "Payment Verified" : (targetStatus === "cancelled" ? "Booking Cancelled" : "Booking Rejected"));
+    if (["approved", "cancelled", "rejected", "payment_verified", "submitted", "created", "completed"].includes(targetStatus)) {
+      const eventName = targetStatus === "approved" ? "Booking Approved" : (targetStatus === "payment_verified" ? "Booking Submitted" : (targetStatus === "completed" ? "Booking Completed" : "Booking Rejected"));
+      const notifTitle = targetStatus === "approved" ? "Booking Confirmed" : (targetStatus === "payment_verified" ? "Payment Verified" : (targetStatus === "completed" ? "Booking Completed" : (targetStatus === "cancelled" ? "Booking Cancelled" : "Booking Rejected")));
       const notifBody = targetStatus === "approved" 
         ? `Your booking request for ${updatedBooking.packageName} has been confirmed. Booking ID: ${updatedBooking.id}.`
         : (targetStatus === "payment_verified"
           ? `Your payment for booking ${updatedBooking.id} has been verified.`
-          : (targetStatus === "cancelled"
-            ? `Your booking ${updatedBooking.id} has been cancelled.`
-            : `Your booking request for ${updatedBooking.packageName} could not be approved. Reason: Payment could not be verified.`));
+          : (targetStatus === "completed"
+            ? `Your booking ${updatedBooking.id} for ${updatedBooking.packageName} has been completed successfully.`
+            : (targetStatus === "cancelled"
+              ? `Your booking ${updatedBooking.id} has been cancelled.`
+              : `Your booking request for ${updatedBooking.packageName} could not be approved. Reason: Payment could not be verified.`)));
 
       await notificationService.sendNotification({
         userId: astroUser.email || astroUser.phone,

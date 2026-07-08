@@ -15,7 +15,10 @@ export const config = {
     port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : undefined,
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM
+    from: process.env.SMTP_FROM,
+    fromName: process.env.SMTP_FROM_NAME || 'Devsetu Connect',
+    fromEmail: process.env.SMTP_FROM_EMAIL || 'noreply@devsetu.in',
+    emailEnabled: process.env.EMAIL_ENABLED !== 'false'
   },
   twilio: {
     accountSid: process.env.TWILIO_ACCOUNT_SID,

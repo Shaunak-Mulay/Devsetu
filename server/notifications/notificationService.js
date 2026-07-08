@@ -2,6 +2,7 @@ import { dbService } from '../services/dbService.js';
 import { SmtpEmailProvider } from './emailProvider.js';
 import { MockSmsProvider, TwilioSmsProvider, Msg91SmsProvider } from './smsProvider.js';
 import { FcmPushProvider } from './pushProvider.js';
+import { EmailService } from '../services/emailService.js';
 
 const eventMapping = {
   "Registration Submitted": { priority: "MEDIUM", category: "registration", channels: ["email", "push", "in-app"] },
@@ -46,6 +47,97 @@ export class NotificationService {
       return await this.emailProvider.sendEmail(to, subject, text);
     } catch (err) {
       console.error(`[NotificationService] Error sending email to ${to}:`, err.message);
+      return false;
+    }
+  }
+
+  async orchestrateEmailNotification({ user, userEmail, event, title, body, relatedBookingId, relatedProfileId }) {
+    if (!userEmail) return false;
+    if (!this.isEmailEnabled()) {
+      console.log(`[NotificationService] Email disabled globally. Bypassing email to ${userEmail}.`);
+      return true;
+    }
+
+    try {
+      let emailPromise;
+      let booking = null;
+
+      if (relatedBookingId) {
+        const bookings = await dbService.getCollection('bookings') || [];
+        booking = bookings.find(b => b.id === relatedBookingId);
+      }
+
+      if (event === "Registration Submitted") {
+        emailPromise = EmailService.sendRegistrationReceivedEmail(userEmail, {
+          name: user.name,
+          profileId: user.profileId
+        });
+      } else if (event === "Registration Approved") {
+        emailPromise = EmailService.sendRegistrationApprovedEmail(userEmail, {
+          name: user.name,
+          profileId: user.profileId,
+          phone: user.phone || user.mobile
+        });
+      } else if (event === "Registration Rejected") {
+        emailPromise = EmailService.sendRegistrationRejectedEmail(userEmail, {
+          name: user.name,
+          reason: body
+        });
+      } else if (event === "Booking Submitted" && booking) {
+        if (title && title.includes("Payment")) {
+          emailPromise = EmailService.sendPaymentReceivedEmail(userEmail, {
+            name: user.name,
+            bookingId: booking.id,
+            amount: booking.amount || 0,
+            txnId: booking.txnId || "N/A"
+          });
+        } else {
+          emailPromise = EmailService.sendBookingConfirmationEmail(userEmail, {
+            clientName: user.name,
+            bookingId: booking.id,
+            packageName: booking.packageName,
+            date: booking.date,
+            time: booking.time,
+            astrologerName: booking.astrologerName
+          });
+        }
+      } else if (event === "Booking Approved" && booking) {
+        if (title && title.includes("Verified")) {
+          emailPromise = EmailService.sendPaymentVerifiedEmail(userEmail, {
+            name: user.name,
+            bookingId: booking.id,
+            packageName: booking.packageName
+          });
+        } else {
+          emailPromise = EmailService.sendBookingConfirmationEmail(userEmail, {
+            clientName: user.name,
+            bookingId: booking.id,
+            packageName: booking.packageName,
+            date: booking.date,
+            time: booking.time,
+            astrologerName: booking.astrologerName
+          });
+        }
+      } else if (event === "Booking Completed" && booking) {
+        emailPromise = EmailService.sendBookingCompletedEmail(userEmail, {
+          name: user.name,
+          bookingId: booking.id,
+          packageName: booking.packageName
+        });
+      } else if (event === "Admin Chat Message" || event === "Chat Message") {
+        emailPromise = EmailService.sendSupportReplyEmail(userEmail, {
+          name: user.name,
+          ticketId: relatedBookingId || "Support Ticket",
+          message: body
+        });
+      } else {
+        // Fallback to generic template
+        emailPromise = EmailService.sendGenericNotification(userEmail, title, body);
+      }
+
+      return await emailPromise;
+    } catch (err) {
+      console.error(`[NotificationService] Error orchestrating email to ${userEmail}:`, err.message);
       return false;
     }
   }
@@ -155,7 +247,7 @@ export class NotificationService {
 
       // 2. Email Notification
       if (channels.includes("email") && userEmail && prefs.email !== false) {
-        this.sendEmail(userEmail, title, body).catch(e => console.error("Async email error:", e));
+        this.orchestrateEmailNotification({ user, userEmail, event, title, body, relatedBookingId, relatedProfileId }).catch(e => console.error("Async email error:", e));
         results.email = "Sent";
       } else if (channels.includes("email")) {
         results.email = "Bypassed (No Email/Pref)";
