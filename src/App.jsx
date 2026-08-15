@@ -3437,7 +3437,19 @@ export default function App() {
                   <div className="phone-screen-body">
                     {/* Booking Flow Redirect Check (If user clicked Book Now and has a created booking waiting for payment) */}
                     {(() => {
-                      const createdBooking = bookings.find(b => b.status === "created");
+                      const curProfileId = (currentUser?.profileId || '').trim().toLowerCase();
+                      const curName = (currentUser?.name || '').trim().toLowerCase();
+                      const curEmail = (currentUser?.email || '').trim().toLowerCase();
+
+                      const createdBooking = bookings.find(b => {
+                        if (b.status !== "created") return false;
+                        const bAstroProfileId = (b.astrologerProfileId || '').trim().toLowerCase();
+                        const bAstroId = (b.astrologerId || b.userId || '').trim().toLowerCase();
+                        const bAstroName = (b.astrologerName || '').trim().toLowerCase();
+                        return (curProfileId && (bAstroProfileId === curProfileId || bAstroId === curProfileId)) ||
+                               (curName && bAstroName && bAstroName === curName) ||
+                               (curEmail && bAstroId === curEmail);
+                      });
                       if (createdBooking && trackingBookingId === createdBooking.id) {
                         return (
                           <div className="premium-card" style={{ 
@@ -3703,7 +3715,25 @@ export default function App() {
 
                         <div className="bookings-grid-desktop" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                           {(() => {
-                            const filteredAstroBookings = bookings.filter(b => {
+                            const curProfileId = (currentUser?.profileId || '').trim().toLowerCase();
+                            const curName = (currentUser?.name || '').trim().toLowerCase();
+                            const curEmail = (currentUser?.email || '').trim().toLowerCase();
+                            const curPhone = (currentUser?.phone || currentUser?.mobile || '').replace(/[^0-9]/g, '');
+
+                            const userOwnBookings = bookings.filter(b => {
+                              if (!currentUser) return false;
+                              const bAstroProfileId = (b.astrologerProfileId || '').trim().toLowerCase();
+                              const bAstroId = (b.astrologerId || b.userId || '').trim().toLowerCase();
+                              const bAstroName = (b.astrologerName || '').trim().toLowerCase();
+
+                              const matchProfileId = curProfileId && (bAstroProfileId === curProfileId || bAstroId === curProfileId);
+                              const matchName = curName && bAstroName && bAstroName === curName;
+                              const matchEmail = curEmail && (bAstroId === curEmail || (b.userId && b.userId.toLowerCase() === curEmail));
+
+                              return matchProfileId || matchName || matchEmail;
+                            });
+
+                            const filteredAstroBookings = userOwnBookings.filter(b => {
                               if (astroBookingFilter === "all") return true;
                               if (astroBookingFilter === "pending") return ["created", "submitted", "verification_pending", "admin_review"].includes(b.status);
                               if (astroBookingFilter === "approved") return ["approved", "scheduled"].includes(b.status);
