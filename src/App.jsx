@@ -33,6 +33,7 @@ import {
   HelpCircle,
   Phone,
   Mail,
+  Trash2,
   Image as ImageIcon
 } from "lucide-react";
 import { servicesData, translations, sampleScreenshots, mockAstrologers, SUPPORT_CONFIG } from "./data";
@@ -417,6 +418,8 @@ export default function App() {
   // Play Store Release Readiness Modal States
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showHelpGuideModal, setShowHelpGuideModal] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
 
@@ -483,7 +486,11 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       setSimulatorView(window.location.hash === "#admin" ? "admin" : "mobile");
+      if (window.location.hash === "#delete-account" || window.location.hash === "#deletion") {
+        setShowDeleteAccountModal(true);
+      }
     };
+    handleHashChange();
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
@@ -2862,10 +2869,29 @@ export default function App() {
                             />
                           </div>
 
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", margin: "4px 0 8px", lineHeight: "1.4", textAlign: "center" }}>
+                            By clicking Sign Up, you agree to our{" "}
+                            <button 
+                              type="button" 
+                              onClick={() => setShowTermsModal(true)} 
+                              style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
+                            >
+                              Terms & Conditions
+                            </button>{" "}
+                            and{" "}
+                            <button 
+                              type="button" 
+                              onClick={() => setShowPrivacyModal(true)} 
+                              style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
+                            >
+                              Privacy Policy
+                            </button>.
+                          </div>
+
                           <button 
                             type="submit" 
                             className="btn-primary" 
-                            style={{ width: "100%", marginTop: "8px", padding: "12px" }}
+                            style={{ width: "100%", marginTop: "4px", padding: "12px" }}
                           >
                             Sign Up
                           </button>
@@ -4595,12 +4621,12 @@ export default function App() {
                                 <span>🛡️ Privacy Policy</span>
                                 <span>▶</span>
                               </div>
-                              <div onClick={() => setShowTermsModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "13px" }}>
-                                <span>📄 Terms & Conditions</span>
+                              <div onClick={() => setShowHelpGuideModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "13px" }}>
+                                <span>📖 Application Help Guide</span>
                                 <span>▶</span>
                               </div>
-                              <div onClick={() => setShowContactModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", cursor: "pointer", fontSize: "13px" }}>
-                                <span>📞 Contact Support Info</span>
+                              <div onClick={() => setShowTermsModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", cursor: "pointer", fontSize: "13px" }}>
+                                <span>📄 Terms & Conditions</span>
                                 <span>▶</span>
                               </div>
                             </div>
@@ -4640,6 +4666,31 @@ export default function App() {
                         >
                           <LogOut size={18} />
                           {t.logout}
+                        </button>
+
+                        {/* Delete Account Button */}
+                        <button 
+                          type="button"
+                          className="btn-secondary" 
+                          style={{ 
+                            color: "#D32F2F", 
+                            backgroundColor: "rgba(211, 47, 47, 0.06)", 
+                            borderColor: "rgba(211, 47, 47, 0.3)", 
+                            width: "100%", 
+                            padding: "14px", 
+                            borderRadius: "28px", 
+                            display: "flex", 
+                            alignItems: "center", 
+                            justifyContent: "center", 
+                            gap: "8px", 
+                            fontSize: "15px", 
+                            fontWeight: "800", 
+                            marginTop: "10px" 
+                          }}
+                          onClick={() => setShowDeleteAccountModal(true)}
+                        >
+                          <Trash2 size={18} />
+                          Delete Account
                         </button>
                       </div>
                     </>
@@ -8657,7 +8708,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       width: "100%",
-                      maxWidth: "440px",
+                      maxWidth: "560px",
                       maxHeight: "85vh",
                       padding: "20px",
                       backgroundColor: "var(--bg-card)",
@@ -8672,7 +8723,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "10px" }}>
                       <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
-                        🔒 Privacy Policy & Data Security
+                        🔒 DEVSETU CONNECT – PRIVACY POLICY
                       </h3>
                       <button 
                         onClick={() => setShowPrivacyModal(false)}
@@ -8682,11 +8733,80 @@ Please confirm manually and send my Login PIN. Thank you.`}
                         ✕
                       </button>
                     </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-main)", lineHeight: "1.6", maxHeight: "55vh", overflowY: "auto", paddingRight: "6px" }}>
-                      <p style={{ marginTop: 0 }}>We respect your privacy and protect your personal information. This Privacy Policy details how we handle the collection, storage, and processing of your details on <strong>DEVSETU Connect</strong>.</p>
-                      <p style={{ marginTop: "8px" }}><strong>1. Information Collection:</strong> We collect details during registration (Name, Email, Mobile Number, State, City, Experience) solely to verify your credentials and match you with sacred ritual services.</p>
-                      <p style={{ marginTop: "8px" }}><strong>2. Data Encryption & Security:</strong> Your account password is hashed securely using PBKDF2 cryptography with unique random salts. Plaintext passwords or security credentials are never stored or transmitted.</p>
-                      <p style={{ marginTop: "8px" }}><strong>3. Third-party Sharing:</strong> We do not share your contact details, client info, or transaction screenshots with external marketing entities. All records are used strictly for partner verification and support communications.</p>
+                    <div style={{ fontSize: "12px", color: "var(--text-main)", lineHeight: "1.6", maxHeight: "60vh", overflowY: "auto", paddingRight: "6px" }}>
+                      <p style={{ marginTop: 0, fontWeight: "600" }}>
+                        Effective Date: 16 Aug 2026 | Last Updated: 16 Aug 2026
+                      </p>
+                      <p>
+                        DEVSETU CONNECT ("DEVSETU", "we", "us", or "our") respects your privacy and is committed to protecting the personal information of users of the DEVSETU CONNECT mobile application and related services.
+                      </p>
+                      <p>
+                        This Privacy Policy explains what information we collect, why we collect it, how we use and protect it, when it may be shared, and the choices available to you.
+                      </p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>1. About DEVSETU CONNECT</h4>
+                      <p>DEVSETU CONNECT is a platform designed to facilitate the management and booking of Pooja and spiritual services by registered astrologers and authorized DEVSETU administrators.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>2. Information We Collect</h4>
+                      <p>We collect information that is necessary to provide and operate DEVSETU CONNECT, including Account Information (Name, Phone, Email, Location), 6-digit Login PIN authentication, Booking Details, UPI Payment transaction UTRs, Support ticket communications, and Technical log data.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>3. How We Use Your Information</h4>
+                      <p>Used strictly for Account Management, Booking Management, Payment Verification, Customer Support, In-App Notifications, Security Auditing, and Legal Compliance.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>4. How We Share Information</h4>
+                      <p>DEVSETU does not sell your personal information. Access is restricted to Authorized Personnel, essential Cloud/Infrastructure Providers, and Legal Authorities where mandated by law.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>5. Privacy Between Users</h4>
+                      <p>Role-based access controls strictly isolate data: astrologers see only their own account, bookings, and support tickets. Authorized administrators retain cross-platform system oversight.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>6. Data Security</h4>
+                      <p>We employ PBKDF2 salt hashing, server-side authorization, and technical security controls to safeguard data. Users remain responsible for protecting their 6-digit Login PIN.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>7. Data Retention</h4>
+                      <p>Retained only as long as necessary to maintain booking history, process transactions, fulfill legal obligations, and prevent fraud.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>8. Account and Data Deletion</h4>
+                      <p>Request account deletion anytime via the in-app option or online at: <br/>
+                      <a href="https://devsetu-eta.vercel.app/#delete-account" target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary-brown)", fontWeight: "700" }}>https://devsetu-eta.vercel.app/#delete-account</a></p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>9. Your Privacy Rights</h4>
+                      <p>Rights include accessing processing details, correcting inaccuracies, requesting deletion, withdrawing consent, and raising grievances.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>10. How to Contact Us About Privacy</h4>
+                      <p>Email: devsetuconnect@gmail.com | Phone: +91 9763147067 | Web: https://devsetu-eta.vercel.app/</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>11. Children's Privacy</h4>
+                      <p>Intended for adult partners. Child details for family Pujas must be provided solely by parents or legal guardians.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>12. Information About Clients</h4>
+                      <p>Astrologers submitting client booking information confirm authorization and relevance for ritual services.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>13. Location Information</h4>
+                      <p>Voluntarily provided performing venue/city locations are processed to coordinate ritual logistics.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>14. Cookies and Website Technologies</h4>
+                      <p>Essential cookies handle web session state, security, and performance monitoring.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>15. Notifications and Emails</h4>
+                      <p>Service-related alerts sent via in-app notifications, email, and SMS for bookings, payments, and support updates.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>16. Third-Party Services</h4>
+                      <p>Cloud infrastructure and email/SMS delivery partners adhere to legal data processing standards.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>17. Changes to This Privacy Policy</h4>
+                      <p>Updates will be communicated via application notifications or email announcements with updated timestamps.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>18. Applicable Law</h4>
+                      <p>Governed in accordance with the applicable laws of India.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>19. Security Warning</h4>
+                      <p style={{ color: "var(--error)", fontWeight: "700" }}>DEVSETU will NEVER ask for your UPI PIN, ATM PIN, Card PIN, Banking Password, or OTP. Never disclose credentials to anyone.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>20. Contact Information</h4>
+                      <p>DEVSETU CONNECT Desk | Privacy Email: devsetuconnect@gmail.com | Phone: +91 9763147067</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>21. Policy Information</h4>
+                      <p>Application: DEVSETU CONNECT | Version: 1.0 | Effective: 16 Aug 2026 | India</p>
                     </div>
                     <button 
                       type="button" 
@@ -8700,48 +8820,307 @@ Please confirm manually and send my Login PIN. Thank you.`}
                 </div>
               )}
 
-              {showTermsModal && (
-                <div style={{
-                  position: "fixed",
-                  inset: 0,
-                  backgroundColor: "rgba(0,0,0,0.5)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  zIndex: 9999,
-                  backdropFilter: "blur(4px)"
-                }} className="fade-in">
-                  <div className="premium-card" style={{
-                    width: "100%",
-                    maxWidth: "420px",
-                    padding: "24px",
-                    backgroundColor: "var(--bg-card)",
-                    border: "1px solid var(--temple-gold)",
-                    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+              {showHelpGuideModal && (
+                <div 
+                  onClick={() => setShowHelpGuideModal(false)}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    backgroundColor: "rgba(0,0,0,0.65)",
                     display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
-                    position: "relative"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 10000,
+                    backdropFilter: "blur(4px)",
+                    padding: "16px"
+                  }} 
+                  className="fade-in"
+                >
+                  <div 
+                    className="premium-card" 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      width: "100%",
+                      maxWidth: "520px",
+                      maxHeight: "85vh",
+                      padding: "20px",
+                      backgroundColor: "var(--bg-card)",
+                      border: "1.5px solid var(--temple-gold)",
+                      borderRadius: "16px",
+                      boxShadow: "0 20px 40px rgba(0,0,0,0.35)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "14px",
+                      position: "relative"
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "10px" }}>
                       <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
-                        Terms & Conditions
+                        📖 DEVSETU CONNECT — User Help Guide
                       </h3>
                       <button 
-                        onClick={() => setShowTermsModal(false)}
-                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "var(--text-muted)" }}
+                        onClick={() => setShowHelpGuideModal(false)}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "var(--text-muted)", padding: "2px 6px" }}
+                        aria-label="Close User Help Guide"
                       >
                         ✕
                       </button>
                     </div>
-                    <div style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.5", maxHeight: "250px", overflowY: "auto", paddingRight: "8px" }}>
-                      <p>Please read these Terms & Conditions carefully before using DEVSETU CONNECT services.</p>
-                      <p><strong>1. Astrologer eligibility:</strong> By registering, you confirm that you are a qualified astrologer and will behave ethically in organizing spiritual services.</p>
-                      <p><strong>2. Pooja Booking Payments:</strong> All booking advance payments submitted with screenshots must match bank statements. Any fraudulent transaction ID upload will lead to immediate account ban.</p>
-                      <p><strong>3. Commision (Astro Fee):</strong> Commision rates are outlined for each package. The app acts as an escrow platform ensuring payouts are completed securely.</p>
+                    <div style={{ fontSize: "12px", color: "var(--text-main)", lineHeight: "1.6", maxHeight: "60vh", overflowY: "auto", paddingRight: "6px" }}>
+                      <h4 style={{ margin: "8px 0 4px", color: "var(--primary-brown)" }}>1. GETTING STARTED</h4>
+                      <p style={{ margin: "0 0 8px" }}>DEVSETU CONNECT has two main access areas: <strong>Astrologer / User</strong> and <strong>Admin Desk</strong>.</p>
+                      
+                      <h4 style={{ margin: "8px 0 4px", color: "var(--primary-brown)" }}>2. 6-DIGIT LOGIN PIN</h4>
+                      <p style={{ margin: "0 0 8px" }}>Astrologers authenticate using a 6-digit Login PIN. Keep your PIN confidential and never share it.</p>
+                      
+                      <h4 style={{ margin: "8px 0 4px", color: "var(--primary-brown)" }}>3. BOOKING A POOJA</h4>
+                      <p style={{ margin: "0 0 8px" }}>Browse Pooja Services, select a package, input Client Details (Yajmaan DOB, Venue, City, Gotra), and view the 20% advance UPI Payment QR Code.</p>
+                      
+                      <h4 style={{ margin: "8px 0 4px", color: "var(--primary-brown)" }}>4. ADVANCE PAYMENT & UTR</h4>
+                      <p style={{ margin: "0 0 8px" }}>Pay advance fee via UPI (GPay/PhonePe/Paytm), enter your 12-digit UTR transaction ID, and submit for Admin verification.</p>
+
+                      <h4 style={{ margin: "8px 0 4px", color: "var(--primary-brown)" }}>5. MY BOOKINGS & TRACKING</h4>
+                      <p style={{ margin: "0 0 8px" }}>Track booking statuses: <code>submitted</code>, <code>approved</code>, <code>scheduled</code>, <code>completed</code>, <code>rejected</code>, <code>cancelled</code>.</p>
+                      
+                      <h4 style={{ margin: "8px 0 4px", color: "var(--primary-brown)" }}>6. SUPPORT & PRIVACY</h4>
+                      <p style={{ margin: "0 0 8px" }}>Support tickets are strictly private to your account. Open a ticket for payment, PIN, or booking queries to live chat with Admin.</p>
                     </div>
-                    <button type="button" onClick={() => setShowTermsModal(false)} className="btn-primary" style={{ width: "100%", padding: "10px" }}>
-                      I Agree
+                    <button 
+                      type="button" 
+                      onClick={() => setShowHelpGuideModal(false)} 
+                      className="btn-primary" 
+                      style={{ width: "100%", padding: "12px", fontSize: "13px", fontWeight: "700" }}
+                    >
+                      Close Help Guide
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Delete Account Confirmation Modal */}
+              {showDeleteAccountModal && (
+                <div 
+                  onClick={() => setShowDeleteAccountModal(false)}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    backgroundColor: "rgba(0, 0, 0, 0.75)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 10000,
+                    backdropFilter: "blur(5px)",
+                    padding: "20px"
+                  }} 
+                  className="fade-in"
+                >
+                  <div 
+                    className="premium-card" 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      width: "100%",
+                      maxWidth: "420px",
+                      padding: "24px",
+                      backgroundColor: "var(--bg-card)",
+                      border: "2px solid #D32F2F",
+                      borderRadius: "20px",
+                      boxShadow: "0 25px 50px rgba(211, 47, 47, 0.25)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "16px",
+                      textAlign: "center"
+                    }}
+                  >
+                    <div style={{
+                      width: "56px",
+                      height: "56px",
+                      borderRadius: "50%",
+                      backgroundColor: "rgba(211, 47, 47, 0.1)",
+                      color: "#D32F2F",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "28px",
+                      margin: "0 auto"
+                    }}>
+                      ⚠️
+                    </div>
+
+                    <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "18px", color: "#D32F2F", margin: 0 }}>
+                      Confirm Account Deletion
+                    </h3>
+
+                    <p style={{ fontSize: "13px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
+                      Are you sure you want to delete your Astrologer Partner account?
+                    </p>
+                    
+                    <div style={{
+                      backgroundColor: "var(--warm-cream-darker)",
+                      padding: "12px",
+                      borderRadius: "10px",
+                      fontSize: "12px",
+                      color: "var(--text-muted)",
+                      textAlign: "left"
+                    }}>
+                      <div>• <strong>Account Name:</strong> {currentUser?.name || "Partner"}</div>
+                      <div>• <strong>Profile ID:</strong> <span style={{ fontFamily: "monospace" }}>{currentUser?.profileId || "DEV-AST-00001"}</span></div>
+                      <div style={{ color: "#D32F2F", marginTop: "6px", fontSize: "11px", fontWeight: "700" }}>
+                        ⚠️ Warning: Deleting your account will deactivate your partner credentials and log you out immediately.
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setShowDeleteAccountModal(false)}
+                        style={{ flex: 1, padding: "12px", fontSize: "13px", fontWeight: "700" }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={async () => {
+                          try {
+                            if (currentUser?.profileId || currentUser?.id) {
+                              await fetch(`${API_BASE}/api/users/${currentUser.profileId || currentUser.id}`, {
+                                method: 'DELETE'
+                              }).catch(() => {});
+                            }
+                          } catch (err) {
+                            console.warn("Delete account error:", err);
+                          }
+                          setShowDeleteAccountModal(false);
+                          setCurrentUser(null);
+                          localStorage.removeItem("devsetu_user");
+                          setIsLoggedIn(false);
+                          setIsSplash(false);
+                          alert("Your account has been deleted successfully.");
+                        }}
+                        style={{ 
+                          flex: 1.2, 
+                          padding: "12px", 
+                          fontSize: "13px", 
+                          fontWeight: "800", 
+                          backgroundColor: "#D32F2F", 
+                          borderColor: "#D32F2F", 
+                          color: "white" 
+                        }}
+                      >
+                        Yes, Delete Account
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showTermsModal && (
+                <div 
+                  onClick={() => setShowTermsModal(false)}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    backgroundColor: "rgba(0,0,0,0.65)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 10000,
+                    backdropFilter: "blur(4px)",
+                    padding: "16px"
+                  }} 
+                  className="fade-in"
+                >
+                  <div 
+                    className="premium-card" 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      width: "100%",
+                      maxWidth: "540px",
+                      maxHeight: "85vh",
+                      padding: "20px",
+                      backgroundColor: "var(--bg-card)",
+                      border: "1.5px solid var(--temple-gold)",
+                      borderRadius: "16px",
+                      boxShadow: "0 20px 40px rgba(0,0,0,0.35)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "14px",
+                      position: "relative"
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "10px" }}>
+                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
+                        📄 DEVSETU CONNECT — TERMS AND CONDITIONS
+                      </h3>
+                      <button 
+                        onClick={() => setShowTermsModal(false)}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "var(--text-muted)", padding: "2px 6px" }}
+                        aria-label="Close Terms and Conditions"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-main)", lineHeight: "1.6", maxHeight: "60vh", overflowY: "auto", paddingRight: "6px" }}>
+                      <p style={{ marginTop: 0, fontWeight: "600" }}>
+                        Effective Date: 16 Aug 2026 | Last Updated: 16 Aug 2026
+                      </p>
+                      <p>
+                        Welcome to DEVSETU CONNECT. These Terms and Conditions ("Terms", "Terms and Conditions") govern your access to and use of the DEVSETU CONNECT mobile application, website, and related services (collectively referred to as the "Platform").
+                      </p>
+                      <p>
+                        By registering for, accessing, or using DEVSETU CONNECT, you agree to be bound by these Terms. If you do not agree with these Terms, please do not register for or use the Platform.
+                      </p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>1. ABOUT DEVSETU CONNECT</h4>
+                      <p>DEVSETU CONNECT is a digital platform designed to facilitate the coordination, booking, and management of Pooja, ritual, and related spiritual services by registered astrologers and authorized DEVSETU administrators.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>2. ACCEPTANCE OF TERMS</h4>
+                      <p>By creating an account or using DEVSETU CONNECT, you confirm that you have read, understood, and agreed to comply with these Terms, provide accurate information, and use the Platform solely for lawful purposes.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>3. ELIGIBILITY</h4>
+                      <p>Intended for qualified astrologers and spiritual-service partners. DEVSETU may restrict access where an account is created using false or unauthorized information.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>4. ACCOUNT REGISTRATION</h4>
+                      <p>Requires accurate registration info (Full Name, Phone, Email, Location, Specialization, Experience). A unique DEVSETU Profile ID is assigned to each registered partner.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>5. ACCOUNT VALIDATION</h4>
+                      <p>Registrations are subject to administrative review. Accounts may be Approved, Rejected, Pending validation, Restricted, or Suspended based on platform compliance.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>6. LOGIN AND 6-DIGIT PIN</h4>
+                      <p>Authenticated using a confidential 6-digit Login PIN. Users must not share PINs, allow unauthorized account access, or attempt to access other accounts.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>7. FORGOT PIN</h4>
+                      <p>PIN reset requests undergo identity verification by DEVSETU Administration before issuing temporary credentials.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>8. USER ACCOUNT RESPONSIBILITY</h4>
+                      <p>Users are responsible for all activities under their account, maintaining profile accuracy, keeping PIN confidential, and reporting suspected breaches immediately.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>9. POOJA AND SERVICE INFORMATION</h4>
+                      <p>Displays ritual packages, prices, advance amounts, and venue specifications. DEVSETU reserves the right to update or modify service offerings.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>10. BOOKING PROCESS</h4>
+                      <p>Bookings require Yajmaan/Client details (Name, DOB, Mobile, Gotra, Preferred Date, City, Venue). Users must verify information prior to submission.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>11. ACCURACY OF BOOKING INFORMATION</h4>
+                      <p>Users are responsible for submitted booking details. Errors should be communicated to DEVSETU Support promptly for manual correction.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>12. BOOKING ID</h4>
+                      <p>A unique Booking ID is generated for each submitted booking and serves as the primary reference for payments, tracking, and support.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>13. ADVANCE PAYMENT</h4>
+                      <p>Supports UPI/QR-based 20% advance payments with 12-digit UTR transaction verification. Users must verify payment recipient details prior to transfer.</p>
+
+                      <h4 style={{ color: "var(--primary-brown)", margin: "12px 0 4px" }}>14. PAYMENT PROCESS</h4>
+                      <p>Workflow: <code>Booking Created ➔ Advance Amount Displayed ➔ UPI/QR Payment ➔ UTR Submitted ➔ Admin Verification ➔ Confirmation</code></p>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowTermsModal(false)} 
+                      className="btn-primary" 
+                      style={{ width: "100%", padding: "12px", fontSize: "13px", fontWeight: "700" }}
+                    >
+                      I Agree & Accept Terms
                     </button>
                   </div>
                 </div>

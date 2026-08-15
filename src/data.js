@@ -673,33 +673,16 @@ export const sampleScreenshots = [
 
 export const mockAstrologers = [
   {
-    id: "ASTRO01",
-    name: "Acharya K. N. Shastri",
+    id: "DEV-AST-00001",
+    name: "Shaunak Mulay",
+    phone: "9763147067",
+    email: "shaunak@devsetu.com",
     location: "Varanasi",
-    rating: "4.9",
+    rating: "4.95",
     avatar: "🧘",
-    joined: "June 2024",
+    joined: "Aug 2026",
     experience: "15 Years",
-    totalBookings: 142
-  },
-  {
-    id: "ASTRO02",
-    name: "Pandit Rahul Dwivedi",
-    location: "Ujjain",
-    rating: "4.8",
-    avatar: "☸️",
-    joined: "Aug 2024",
-    experience: "12 Years",
-    totalBookings: 98
-  },
-  {
-    id: "ASTRO03",
-    name: "Guruji Anand Joshi",
-    location: "Nashik",
-    rating: "4.75",
-    avatar: "🔱",
-    joined: "Jan 2025",
-    experience: "18 Years",
-    totalBookings: 204
+    accountStatus: "approved",
+    totalBookings: 0
   }
 ];

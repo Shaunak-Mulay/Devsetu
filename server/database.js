@@ -77,43 +77,12 @@ const defaultData = {
       accountStatus: "approved",
       role: "astrologer",
       sessionVersion: 1
-    },
-    {
-      profileId: "DEV-AST-000002",
-      name: "Verification Astro",
-      email: "verifyastro@gmail.com",
-      phone: "9876543210",
-      mobile: "9876543210",
-      password: astro2Hash,
-      salt: astro2Salt,
-      accountStatus: "approved",
-      role: "astrologer",
-      sessionVersion: 1
     }
   ],
   bookings: [],
   chats: [],
   tickets: [],
-  notifications: [
-    {
-      id: "NT-87961",
-      userEmail: "verifyastro@gmail.com",
-      title: "Booking Approved",
-      body: "Your booking request for Ekam Shanti (1 Pandit) has been approved. Booking ID: BK-4411. Please check the DEVSETU app for further details.",
-      type: "success",
-      read: false,
-      createdAt: "2026-06-20T00:07:35.848Z"
-    },
-    {
-      id: "NT-INIT01",
-      userEmail: "shaunakmulay19@gmail.com",
-      title: "Welcome to DEVSETU",
-      body: "Welcome Shaunak Mulay. Your astrologer account has been successfully created. Explore categories and start booking pooja services.",
-      type: "info",
-      read: false,
-      createdAt: "2026-06-19T22:00:00Z"
-    }
-  ],
+  notifications: [],
   otps: [],
   audit_logs: [],
   pin_reset_requests: [],

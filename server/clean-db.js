@@ -84,21 +84,7 @@ async function cleanDatabase() {
       sessionVersion: 1
     };
 
-    const { salt: astro2Salt, hash: astro2Hash } = hashPassword(astroPin);
-    const defaultAstro2 = {
-      profileId: "DEV-AST-000002",
-      name: "Verification Astro",
-      email: "verifyastro@gmail.com",
-      phone: "9876543210",
-      mobile: "9876543210",
-      password: astro2Hash,
-      salt: astro2Salt,
-      accountStatus: "approved",
-      role: "astrologer",
-      sessionVersion: 1
-    };
-
-    await database.saveCollection('users', [adminUser, defaultAstro1, defaultAstro2]);
+    await database.saveCollection('users', [adminUser, defaultAstro1]);
     await database.saveCollection('pin_reset_requests', []);
 
     console.log("\n[SUCCESS] Database cleanup and Admin seeding finished successfully!");
