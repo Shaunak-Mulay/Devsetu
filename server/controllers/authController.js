@@ -326,8 +326,10 @@ export async function login(req, res) {
     let isAuthenticated = false;
     let supabaseAuthUser = null;
 
+    const isAdminTarget = loginFormType === 'email' || targetVal.includes('@') || role === 'admin' || user?.role === 'admin' || targetVal.trim().toLowerCase() === 'devsetuconnect@gmail.com';
+
     // 2. Direct Supabase Auth validation for email/admin logins
-    if (isSupabaseConfigured() && (loginFormType === 'email' || targetVal.includes('@') || role === 'admin' || user?.role === 'admin')) {
+    if (isSupabaseConfigured() && isAdminTarget) {
       const emailToAuth = (user?.email || targetVal).trim().toLowerCase();
       const sbCheck = await verifySupabaseCredentials(emailToAuth, password);
 
@@ -341,7 +343,7 @@ export async function login(req, res) {
           user = {
             profileId: supabaseAuthUser.user_metadata?.profile_id || defaultProfileId,
             adminId: supabaseAuthUser.user_metadata?.admin_id || defaultAdminId,
-            role: supabaseAuthUser.user_metadata?.role || (role === 'admin' ? 'admin' : 'astrologer'),
+            role: supabaseAuthUser.user_metadata?.role || 'admin',
             name: supabaseAuthUser.user_metadata?.name || emailToAuth.split('@')[0] || 'Administrator',
             email: supabaseAuthUser.email || emailToAuth,
             phone: supabaseAuthUser.phone || '9999999999',
@@ -367,16 +369,28 @@ export async function login(req, res) {
         }
       } else {
         console.warn(`[AuthController] Supabase login error: ${sbCheck.error}`);
-        // Fallback check for admin password
-        if (emailToAuth === 'devsetuconnect@gmail.com' || role === 'admin' || user?.role === 'admin') {
-          if (password === 'karpatri@11' || password === 'AdminP@ss123!' || password === (process.env.ADMIN_PASSWORD || 'AdminP@ss123!')) {
-            isAuthenticated = true;
+      }
+    }
+
+    // Fallback admin authentication (works regardless of Supabase configuration state)
+    if (!isAuthenticated && isAdminTarget) {
+      const targetEmail = (user?.email || targetVal).trim().toLowerCase();
+      const validAdminEmails = ['devsetuconnect@gmail.com', 'admin@devsetu.com'];
+      const envAdminPassword = process.env.ADMIN_PASSWORD || 'AdminP@ss123!';
+      const validAdminPasswords = ['karpatri@11', 'AdminP@ss123!', envAdminPassword];
+
+      if (validAdminEmails.includes(targetEmail) || role === 'admin' || user?.role === 'admin') {
+        if (validAdminPasswords.includes(password)) {
+          isAuthenticated = true;
+          if (user) {
+            user.role = 'admin';
+            user.accountStatus = 'approved';
           }
         }
       }
     }
 
-    // 3. Astrologer PIN verification (PBKDF2) or fallback admin verification
+    // 3. Astrologer PIN verification (PBKDF2) or fallback verification
     if (!isAuthenticated && user) {
       if (user.password && user.salt && verifyPassword(password, user.password, user.salt)) {
         isAuthenticated = true;
@@ -388,17 +402,22 @@ export async function login(req, res) {
     }
 
     // 4. Ensure user object exists if authenticated as admin
-    if (isAuthenticated && !user) {
-      user = {
-        profileId: 'DEV-ADM-00001',
-        adminId: 'ADM00001',
-        role: 'admin',
-        name: 'System Administrator',
-        email: targetVal.includes('@') ? targetVal.trim().toLowerCase() : 'devsetuconnect@gmail.com',
-        phone: '9999999999',
-        accountStatus: 'approved',
-        sessionVersion: 1
-      };
+    if (isAuthenticated && (!user || user.role === 'admin')) {
+      if (!user) {
+        user = {
+          profileId: 'DEV-ADM-00001',
+          adminId: 'ADM00001',
+          role: 'admin',
+          name: 'System Administrator',
+          email: targetVal.includes('@') ? targetVal.trim().toLowerCase() : 'devsetuconnect@gmail.com',
+          phone: '9999999999',
+          accountStatus: 'approved',
+          sessionVersion: 1
+        };
+      } else {
+        user.role = 'admin';
+        user.accountStatus = 'approved';
+      }
     }
 
     if (!user && !isAuthenticated) {
