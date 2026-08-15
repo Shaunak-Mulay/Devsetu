@@ -280,22 +280,21 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: calc(100% - 52px);
+  height: calc(100% - 64px);
   width: 100%;
   overflow-y: auto;
   position: relative;
-  padding-bottom: 70px; /* Ensures scrollable content never hides behind fixed navbar */
+  -webkit-overflow-scrolling: touch;
 }
 
 .phone-screen-body {
-  flex: 1;
-  overflow-y: auto;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 0;
-  padding-bottom: 30px;
+  min-height: min-content;
+  padding-bottom: 100px; /* Generous padding to ensure all expanded accordions and buttons are 100% visible above the bottom navbar */
+  overflow: visible; /* Single smooth scroll container! Eliminates nested scrolling traps */
 }
 
 /* Phone Navigation Header */
@@ -310,6 +309,9 @@ button, input, select, textarea {
   background-color: var(--phone-card-bg);
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .phone-nav-title {
