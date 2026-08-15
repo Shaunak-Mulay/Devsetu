@@ -5380,14 +5380,6 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       </button>
 
                       <button 
-                        onClick={() => { setAdminTab("notifications"); setAdminDrawerOpen(false); }} 
-                        className={`admin-drawer-item ${adminTab === "notifications" ? "active" : ""}`}
-                      >
-                        <Bell size={16} />
-                        <span>Notifications Panel</span>
-                      </button>
-
-                      <button 
                         onClick={() => { setAdminTab("reports"); setAdminDrawerOpen(false); }} 
                         className={`admin-drawer-item ${adminTab === "reports" ? "active" : ""}`}
                       >
@@ -5595,14 +5587,6 @@ Please confirm manually and send my Login PIN. Thank you.`}
               >
                 <MessageSquare size={16} />
                 <span>Support Console</span>
-              </button>
-
-              <button 
-                onClick={() => setAdminTab("notifications")} 
-                className={`admin-sidebar-item ${adminTab === "notifications" ? "active" : ""}`}
-              >
-                <Bell size={16} />
-                <span>Notifications Panel</span>
               </button>
 
               <button 
