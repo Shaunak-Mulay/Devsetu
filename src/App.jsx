@@ -35,12 +35,12 @@ import {
   Mail,
   Image as ImageIcon
 } from "lucide-react";
-import { servicesData, translations, sampleScreenshots, mockAstrologers } from "./data";
+import { servicesData, translations, sampleScreenshots, mockAstrologers, SUPPORT_CONFIG } from "./data";
 import { paymentService } from "./services/PaymentService";
 const getApiBase = () => {
   const saved = localStorage.getItem("devsetu_api_base");
-  if (saved) return saved;
-  return "https://devsetu-4wav.onrender.com";
+  const base = saved || "https://devsetu-eta.vercel.app";
+  return base.replace(/\/+$/, "");
 };
 const API_BASE = getApiBase();
 
@@ -229,27 +229,29 @@ function PaymentQRCode({ language = "en" }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", gap: "8px" }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", gap: "10px" }}>
       <div style={{
-        width: "140px",
-        height: "140px",
-        margin: "0 auto",
-        border: "2px solid var(--temple-gold)",
-        borderRadius: "12px",
+        width: "230px",
+        height: "230px",
+        maxWidth: "80vw",
+        maxHeight: "80vw",
+        margin: "8px auto",
+        border: "2.5px solid var(--temple-gold)",
+        borderRadius: "16px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: "#ffffff",
         position: "relative",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
         overflow: "hidden"
       }}>
         <img 
           src={qrUrl} 
           onError={() => setError(true)}
           alt="Payment QR Code" 
-          style={{ width: "120px", height: "120px", objectFit: "contain", borderRadius: "8px" }}
+          style={{ width: "210px", height: "210px", maxWidth: "75vw", maxHeight: "75vw", objectFit: "contain", borderRadius: "12px" }}
         />
       </div>
       <p style={{ 
@@ -276,10 +278,18 @@ function PaymentQRCode({ language = "en" }) {
 }
 
 export default function App() {
+  // Check if running inside Capacitor native app wrapper
+  const isNativeMobile = typeof window !== 'undefined' && (
+    !!window.Capacitor?.isNative ||
+    window.location.href.indexOf('capacitor://') === 0 ||
+    (window.location.href.indexOf('http://localhost') === 0 && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent))
+  );
+
   // Global Shared State
   const [theme, setTheme] = useState(() => localStorage.getItem("devsetu_theme") || "light");
   const [language, setLanguage] = useState(() => localStorage.getItem("devsetu_lang") || "en");
   const [activeRoleSelection, setActiveRoleSelection] = useState(() => {
+    if (isNativeMobile) return "astrologer";
     if (localStorage.getItem("devsetu_user")) return "astrologer";
     if (localStorage.getItem("devsetu_admin_user")) return "admin";
     return null;
@@ -425,7 +435,11 @@ export default function App() {
   // Tab Management
   const [astroTab, setAstroTab] = useState("home"); // home, services, bookings, support, profile
   const [adminTab, setAdminTab] = useState("home"); // home, astrologers, payments, bookings, support
-  const [simulatorView, setSimulatorView] = useState(() => window.location.hash === "#admin" ? "admin" : "mobile");
+  const [adminDrawerOpen, setAdminDrawerOpen] = useState(false);
+  const [simulatorView, setSimulatorView] = useState(() => {
+    if (isNativeMobile) return "mobile";
+    return window.location.hash === "#admin" ? "admin" : "mobile";
+  });
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -495,12 +509,14 @@ export default function App() {
   // Notifications
   const [notifications, setNotifications] = useState([]);
 
-  // Form Inputs - Mobile App
   const [bookingForm, setBookingForm] = useState({
     clientName: "",
+    yajmaanDob: "",
     clientMobile: "",
+    poojaPlace: "",
     city: "Varanasi",
     preferredDate: "",
+    paymentTxnId: "",
     notes: ""
   });
 
@@ -1042,23 +1058,26 @@ export default function App() {
   // Handle Astrologer Booking Form Submission
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
-    if (!bookingForm.clientName || !bookingForm.clientMobile || !bookingForm.preferredDate) {
-      alert("Please fill all required fields.");
+    if (!bookingForm.clientName || !bookingForm.clientMobile || !bookingForm.preferredDate || !bookingForm.poojaPlace) {
+      alert("Please fill all required fields (Yajmaan Name, Mobile, Pooja Date, and Venue Place).");
       return;
     }
     
     try {
       const payload = {
         astrologerName: currentUser?.name || "Acharya Shastri",
-        astrologerProfileId: currentUser?.profileId || "DEV-AST-00001",
+        astrologerProfileId: currentUser?.profileId || "DEV-AST-000001",
         serviceId: selectedService.id,
         packageName: isBookingFlow.name[language] || isBookingFlow.name.en,
         amount: isBookingFlow.price,
         astroFee: isBookingFlow.astroFee,
         clientName: bookingForm.clientName,
+        yajmaanDob: bookingForm.yajmaanDob,
         clientMobile: bookingForm.clientMobile,
+        poojaPlace: bookingForm.poojaPlace,
         city: bookingForm.city,
         date: bookingForm.preferredDate,
+        paymentTxnId: bookingForm.paymentTxnId,
         notes: bookingForm.notes
       };
 
@@ -1082,9 +1101,12 @@ export default function App() {
       // Clear Form
       setBookingForm({
         clientName: "",
+        yajmaanDob: "",
         clientMobile: "",
+        poojaPlace: "",
         city: "Varanasi",
         preferredDate: "",
+        paymentTxnId: "",
         notes: ""
       });
     } catch (err) {
@@ -1505,7 +1527,8 @@ export default function App() {
   return (
     <div className={`devsetu-workspace ${theme === "dark" ? "dark-theme" : ""} ${accessibilityClass}`}>
       {/* Workspace Header */}
-      <header className="workspace-header">
+      {!isNativeMobile && (
+        <header className="workspace-header">
         <div className="brand-section">
           <img 
             src={theme === "light" 
@@ -1629,29 +1652,75 @@ export default function App() {
             {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
           </button>
 
-          {/* View Mode Switcher Toggle */}
-          <button 
-            onClick={() => setSimulatorView(simulatorView === "mobile" ? "admin" : "mobile")}
-            className="btn-secondary"
-            style={{ 
-              borderRadius: "18px", 
-              height: "36px", 
-              padding: "0 14px", 
-              display: "flex", 
-              alignItems: "center", 
-              gap: "6px",
-              border: "1px solid var(--temple-gold)",
-              color: "var(--temple-gold)",
-              fontWeight: "700",
-              fontSize: "11px",
-              background: "transparent",
-              cursor: "pointer"
-            }}
-            title={simulatorView === "mobile" ? "Switch to Admin Dashboard" : "Switch to Astrologer Mobile"}
-          >
-            <ShieldCheck size={14} />
-            <span>{simulatorView === "mobile" ? "Admin Panel" : "Astro App"}</span>
-          </button>
+          {/* Segmented Layout Switcher */}
+          <div className="layout-segmented-control" style={{ display: "flex", backgroundColor: "var(--warm-cream-darker)", borderRadius: "20px", padding: "3px", border: "1px solid var(--border-color)" }}>
+            <button 
+              onClick={() => { setSimulatorView("mobile"); if (activeRoleSelection === null) setActiveRoleSelection("astrologer"); }}
+              className="segmented-btn"
+              style={{
+                borderRadius: "17px",
+                height: "30px",
+                padding: "0 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                border: "none",
+                backgroundColor: simulatorView === "mobile" ? "var(--primary-brown)" : "transparent",
+                color: simulatorView === "mobile" ? "#FFF6E9" : "var(--text-main)",
+                fontWeight: "755",
+                fontSize: "11px",
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+              title="View Astrologer Portal in Mobile Simulator"
+            >
+              📱 Astro App
+            </button>
+            <button 
+              onClick={() => { setSimulatorView("web"); if (activeRoleSelection === null) setActiveRoleSelection("astrologer"); }}
+              className="segmented-btn"
+              style={{
+                borderRadius: "17px",
+                height: "30px",
+                padding: "0 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                border: "none",
+                backgroundColor: simulatorView === "web" ? "var(--primary-brown)" : "transparent",
+                color: simulatorView === "web" ? "#FFF6E9" : "var(--text-main)",
+                fontWeight: "755",
+                fontSize: "11px",
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+              title="View Astrologer Portal in Full Responsive Web Mode"
+            >
+              💻 Astro Web
+            </button>
+            <button 
+              onClick={() => { setSimulatorView("admin"); if (activeRoleSelection === null) setActiveRoleSelection("admin"); }}
+              className="segmented-btn"
+              style={{
+                borderRadius: "17px",
+                height: "30px",
+                padding: "0 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                border: "none",
+                backgroundColor: simulatorView === "admin" ? "var(--primary-brown)" : "transparent",
+                color: simulatorView === "admin" ? "#FFF6E9" : "var(--text-main)",
+                fontWeight: "755",
+                fontSize: "11px",
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+              title="View Administrative Control Hub"
+            >
+              🛡️ Admin Hub
+            </button>
+          </div>
 
           {/* Language Switcher */}
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -1669,6 +1738,7 @@ export default function App() {
           </div>
         </div>
       </header>
+      )}
 
       {/* Main Workspace split panel */}
       {activeRoleSelection === null ? (
@@ -1685,26 +1755,37 @@ export default function App() {
             <p style={{ color: "var(--text-muted)", fontSize: "14px", margin: 0 }}>Select Login Type</p>
           </div>
 
-          <div className="role-selection-cards">
-            <div className="role-card" onClick={() => { setActiveRoleSelection("astrologer"); setSimulatorView("mobile"); }}>
-              <div className="role-card-icon">🔮</div>
-              <h2 className="role-card-title">Astrologer Login</h2>
+          <div className="role-selection-cards" style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1200px", width: "100%", padding: "0 20px" }}>
+            <div className="role-card" onClick={() => { setActiveRoleSelection("astrologer"); setSimulatorView("web"); }} style={{ flex: "1 1 300px", maxWidth: "360px" }}>
+              <div className="role-card-icon">💻</div>
+              <h2 className="role-card-title">Astrologer Web Portal</h2>
               <p className="role-card-desc">
-                Login as a registered DEVSETU Astrologer to manage pooja bookings, view notifications, communicate with the administrator, and access your professional dashboard.
+                Log in to the full-width responsive web dashboard. Perfect for managing bookings, pooja listings, and settings from a desktop or tablet.
               </p>
-              <button className="btn-primary role-card-btn" type="button">
-                Continue as Astrologer
+              <button className="btn-primary role-card-btn" type="button" style={{ marginTop: "auto" }}>
+                Enter Web Portal
               </button>
             </div>
 
-            <div className="role-card" onClick={() => { setActiveRoleSelection("admin"); setSimulatorView("admin"); }}>
-              <div className="role-card-icon">🛡️</div>
-              <h2 className="role-card-title">Administrator Login</h2>
+            <div className="role-card" onClick={() => { setActiveRoleSelection("astrologer"); setSimulatorView("mobile"); }} style={{ flex: "1 1 300px", maxWidth: "360px" }}>
+              <div className="role-card-icon">📱</div>
+              <h2 className="role-card-title">Astrologer Mobile App</h2>
               <p className="role-card-desc">
-                Login as DEVSETU Administrator to manage astrologers, approve registrations, verify payments, monitor bookings, and control the platform.
+                Launch the senior-friendly mobile simulator. Features high-contrast fonts and large touch targets optimized for mobile browsers.
               </p>
-              <button className="btn-primary role-card-btn" type="button">
-                Continue as Administrator
+              <button className="btn-primary role-card-btn" type="button" style={{ marginTop: "auto" }}>
+                Launch Mobile App
+              </button>
+            </div>
+
+            <div className="role-card" onClick={() => { setActiveRoleSelection("admin"); setSimulatorView("admin"); }} style={{ flex: "1 1 300px", maxWidth: "360px" }}>
+              <div className="role-card-icon">🛡️</div>
+              <h2 className="role-card-title">Administrator Portal</h2>
+              <p className="role-card-desc">
+                Administrative Control Hub to approve astrologer signups, verify booking payments, monitor platform activity, and track SMTP logs.
+              </p>
+              <button className="btn-primary role-card-btn" type="button" style={{ marginTop: "auto" }}>
+                Enter Admin Panel
               </button>
             </div>
           </div>
@@ -1988,7 +2069,7 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => {
-                        const newUrl = prompt("Enter backend API base URL:", localStorage.getItem("devsetu_api_base") || "https://devsetu-4wav.onrender.com");
+                        const newUrl = prompt("Enter backend API base URL:", localStorage.getItem("devsetu_api_base") || "https://devsetu-eta.vercel.app");
                         if (newUrl !== null) {
                           localStorage.setItem("devsetu_api_base", newUrl.trim());
                           alert("API URL updated! Reloading app...");
@@ -2626,8 +2707,166 @@ export default function App() {
                   </div>
                 </div>
               ) : (
-                <>
-              {astroTab === "home" && (
+                <div className="astro-portal-container">
+                  {simulatorView === "web" && (
+                    <aside className="astro-web-sidebar">
+                      <div className="astro-web-sidebar-header" style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-color)", marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "24px" }}>🔮</span>
+                        <div>
+                          <div style={{ fontSize: "14px", fontWeight: "800", color: "var(--primary-brown)", fontFamily: "var(--font-heading)" }}>DEVSETU</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: "650" }}>Astrologer Portal</div>
+                        </div>
+                      </div>
+                      <div className="astro-web-sidebar-menu" style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 12px", flex: 1 }}>
+                        <button 
+                          onClick={() => { setAstroTab("home"); setTrackingBookingId(null); }}
+                          className={`astro-sidebar-btn ${astroTab === "home" ? "active" : ""}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            padding: "10px 14px",
+                            borderRadius: "8px",
+                            border: "none",
+                            backgroundColor: astroTab === "home" ? "rgba(212,175,55,0.1)" : "transparent",
+                            color: astroTab === "home" ? "var(--temple-gold)" : "var(--text-main)",
+                            fontWeight: "750",
+                            fontSize: "13px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            width: "100%"
+                          }}
+                        >
+                          <Home size={18} /> Home
+                        </button>
+                        <button 
+                          onClick={() => { setAstroTab("services"); setSelectedService(null); setIsBookingFlow(null); }}
+                          className={`astro-sidebar-btn ${astroTab === "services" ? "active" : ""}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            padding: "10px 14px",
+                            borderRadius: "8px",
+                            border: "none",
+                            backgroundColor: astroTab === "services" ? "rgba(212,175,55,0.1)" : "transparent",
+                            color: astroTab === "services" ? "var(--temple-gold)" : "var(--text-main)",
+                            fontWeight: "750",
+                            fontSize: "13px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            width: "100%"
+                          }}
+                        >
+                          <BookOpen size={18} /> Pooja Marketplace
+                        </button>
+                        <button 
+                          onClick={() => { setAstroTab("bookings"); setTrackingBookingId(null); }}
+                          className={`astro-sidebar-btn ${astroTab === "bookings" ? "active" : ""}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            padding: "10px 14px",
+                            borderRadius: "8px",
+                            border: "none",
+                            backgroundColor: astroTab === "bookings" ? "rgba(212,175,55,0.1)" : "transparent",
+                            color: astroTab === "bookings" ? "var(--temple-gold)" : "var(--text-main)",
+                            fontWeight: "750",
+                            fontSize: "13px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            width: "100%"
+                          }}
+                        >
+                          <Calendar size={18} /> My Bookings
+                        </button>
+                        <button 
+                          onClick={() => { setAstroTab("support"); }}
+                          className={`astro-sidebar-btn ${astroTab === "support" ? "active" : ""}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            padding: "10px 14px",
+                            borderRadius: "8px",
+                            border: "none",
+                            backgroundColor: astroTab === "support" ? "rgba(212,175,55,0.1)" : "transparent",
+                            color: astroTab === "support" ? "var(--temple-gold)" : "var(--text-main)",
+                            fontWeight: "750",
+                            fontSize: "13px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            width: "100%"
+                          }}
+                        >
+                          <MessageSquare size={18} /> Support Chat
+                        </button>
+                        <button 
+                          onClick={() => { setAstroTab("profile"); }}
+                          className={`astro-sidebar-btn ${astroTab === "profile" ? "active" : ""}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            padding: "10px 14px",
+                            borderRadius: "8px",
+                            border: "none",
+                            backgroundColor: astroTab === "profile" ? "rgba(212,175,55,0.1)" : "transparent",
+                            color: astroTab === "profile" ? "var(--temple-gold)" : "var(--text-main)",
+                            fontWeight: "750",
+                            fontSize: "13px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            width: "100%"
+                          }}
+                        >
+                          <User size={18} /> Profile & Settings
+                        </button>
+                      </div>
+                      <div className="astro-web-sidebar-footer" style={{ padding: "16px 20px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "var(--warm-cream-darker)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", border: "2.5px solid var(--temple-gold)" }}>🧘</div>
+                          <div style={{ overflow: "hidden" }}>
+                            <div style={{ fontSize: "12px", fontWeight: "800", color: "var(--text-main)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                              {currentUser?.name || "Acharya Shastri"}
+                            </div>
+                            <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>
+                              {currentUser?.profileId || "DEV-AST-00001"}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setCurrentUser(null);
+                            localStorage.removeItem("devsetu_user");
+                            setIsLoggedIn(false);
+                            setIsSplash(false);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            padding: "8px",
+                            border: "1px solid var(--error)",
+                            borderRadius: "6px",
+                            backgroundColor: "transparent",
+                            color: "var(--error)",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            width: "100%",
+                            marginTop: "4px"
+                          }}
+                        >
+                          <LogOut size={16} /> Log Out
+                        </button>
+                      </div>
+                    </aside>
+                  )}
+                  <div className="astro-portal-viewport">
+                    {astroTab === "home" && (
                 <>
                   <div className="phone-nav-header" style={{ padding: "0 12px", height: "56px" }}>
                     <button 
@@ -2680,7 +2919,9 @@ export default function App() {
                   </div>
                   
                   <div className="phone-screen-body">
-                    {/* Welcome Header Section */}
+                    <div className="astro-dashboard-layout">
+                      <div className="astro-dashboard-main">
+                        {/* Welcome Header Section */}
                     <div className="premium-card" style={{
                       padding: "20px",
                       borderRadius: "16px",
@@ -2814,8 +3055,10 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Contact Us Section */}
-                    <div style={{ marginTop: "8px" }}>
+                      </div>
+                      <div className="astro-dashboard-sidebar" style={{ width: "100%" }}>
+                        {/* Contact Us Section */}
+                        <div style={{ marginTop: "8px" }}>
                       <div style={{ fontSize: "11px", textTransform: "uppercase", fontWeight: "700", color: "var(--text-muted)", marginBottom: "8px" }}>
                         {t.contactUsTitle}
                       </div>
@@ -2824,13 +3067,13 @@ export default function App() {
                           {t.contactUsDesc}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid var(--border-color)", paddingTop: "10px" }}>
-                          <a href="tel:+918047096888" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--text-main)", fontSize: "11px", fontWeight: "700" }}>
+                          <a href={SUPPORT_CONFIG.telHref} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--text-main)", fontSize: "11px", fontWeight: "700" }}>
                             <Phone size={14} color="var(--temple-gold)" />
-                            <span>+91 80 4709 6888</span>
+                            <span>{SUPPORT_CONFIG.phone}</span>
                           </a>
-                          <a href="mailto:support@devsetu.com" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--text-main)", fontSize: "11px", fontWeight: "700" }}>
+                          <a href={SUPPORT_CONFIG.mailtoHref} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--text-main)", fontSize: "11px", fontWeight: "700" }}>
                             <Mail size={14} color="var(--temple-gold)" />
-                            <span>support@devsetu.com</span>
+                            <span>{SUPPORT_CONFIG.email}</span>
                           </a>
                         </div>
                         <button 
@@ -2841,6 +3084,8 @@ export default function App() {
                           Open Live Support Chat
                         </button>
                       </div>
+                    </div>
+                    </div>
                     </div>
                   </div>
                 </>
@@ -2877,7 +3122,7 @@ export default function App() {
                     </div>
 
                     {/* Full Grid of Services */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "14px" }}>
+                    <div className="services-grid-desktop" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "14px" }}>
                       {servicesData.map(service => (
                         <div 
                           key={service.id} 
@@ -2958,7 +3203,7 @@ export default function App() {
                         {t.packagesTitle}
                       </h4>
                       
-                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div className="packages-grid-desktop" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                         {selectedService.packages.map(pkg => (
                           <div 
                             key={pkg.id} 
@@ -3018,9 +3263,12 @@ export default function App() {
                       <span style={{ fontWeight: "700" }}>Package:</span> {isBookingFlow.name[language] || isBookingFlow.name.en} (₹{isBookingFlow.price.toLocaleString()})
                     </div>
 
-                    <form onSubmit={handleBookingSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <form onSubmit={handleBookingSubmit} className="booking-form-grid" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {/* 1. Name of Yajmaan */}
                       <div className="form-group">
-                        <label className="form-label">{t.clientName} *</label>
+                        <label className="form-label">
+                          {language === "hi" ? "यजमान का पूरा नाम *" : language === "mr" ? "यजमानाचे पूर्ण नाव *" : "Yajmaan (Client) Full Name *"}
+                        </label>
                         <input 
                           type="text" 
                           required
@@ -3031,18 +3279,50 @@ export default function App() {
                         />
                       </div>
 
+                      {/* 2. Date of Birth of Yajmaan */}
                       <div className="form-group">
-                        <label className="form-label">{t.clientMobile} *</label>
+                        <label className="form-label">
+                          {language === "hi" ? "यजमान की जन्म तिथि (DOB) *" : language === "mr" ? "यजमानाची जन्मतारीख (DOB) *" : "Yajmaan Date of Birth (DOB) *"}
+                        </label>
                         <input 
-                          type="tel" 
+                          type="date" 
                           required
-                          value={bookingForm.clientMobile}
-                          onChange={(e) => setBookingForm({ ...bookingForm, clientMobile: e.target.value })}
-                          placeholder="10-digit mobile number" 
+                          value={bookingForm.yajmaanDob}
+                          onChange={(e) => setBookingForm({ ...bookingForm, yajmaanDob: e.target.value })}
                           className="form-input" 
                         />
                       </div>
 
+                      {/* 3. Date of Performance of Pooja */}
+                      <div className="form-group">
+                        <label className="form-label">
+                          {language === "hi" ? "पूजा अनुष्ठान की तिथि *" : language === "mr" ? "पूजा विधीची तारीख *" : "Date of Performance of Pooja *"}
+                        </label>
+                        <input 
+                          type="date" 
+                          required
+                          value={bookingForm.preferredDate}
+                          onChange={(e) => setBookingForm({ ...bookingForm, preferredDate: e.target.value })}
+                          className="form-input" 
+                        />
+                      </div>
+
+                      {/* 4. Pooja Performing Place (Venue / Address) */}
+                      <div className="form-group">
+                        <label className="form-label">
+                          {language === "hi" ? "पूजा का स्थान / पता *" : language === "mr" ? "पूजा करण्याचे ठिकाण / पत्ता *" : "Pooja Performing Place / Venue Address *"}
+                        </label>
+                        <input 
+                          type="text" 
+                          required
+                          value={bookingForm.poojaPlace}
+                          onChange={(e) => setBookingForm({ ...bookingForm, poojaPlace: e.target.value })}
+                          placeholder="e.g. Trimbakeshwar Temple Mandap, Nashik" 
+                          className="form-input" 
+                        />
+                      </div>
+
+                      {/* 5. City Selection */}
                       <div className="form-group">
                         <label className="form-label">{t.city} *</label>
                         <select 
@@ -3058,21 +3338,42 @@ export default function App() {
                         </select>
                       </div>
 
+                      {/* 6. Yajmaan Mobile Number */}
                       <div className="form-group">
-                        <label className="form-label">{t.preferredDate} *</label>
+                        <label className="form-label">{t.clientMobile} *</label>
                         <input 
-                          type="date" 
+                          type="tel" 
                           required
-                          value={bookingForm.preferredDate}
-                          onChange={(e) => setBookingForm({ ...bookingForm, preferredDate: e.target.value })}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={10}
+                          value={bookingForm.clientMobile}
+                          onChange={(e) => setBookingForm({ ...bookingForm, clientMobile: e.target.value.replace(/[^0-9]/g, '') })}
+                          placeholder="10-digit mobile number" 
                           className="form-input" 
                         />
                       </div>
 
+                      {/* 7. Payment UPI Transaction ID */}
+                      <div className="form-group">
+                        <label className="form-label">
+                          {language === "hi" ? "UPI ट्रांजैक्शन आईडी (12-अंक Ref No)" : language === "mr" ? "UPI ट्रान्सझॅक्शन आयडी (12-अंकी Ref No)" : "Payment UPI Transaction ID (12-Digit Ref No)"}
+                        </label>
+                        <input 
+                          type="text" 
+                          maxLength={12}
+                          value={bookingForm.paymentTxnId}
+                          onChange={(e) => setBookingForm({ ...bookingForm, paymentTxnId: e.target.value.replace(/[^0-9]/g, '') })}
+                          placeholder="12-digit UPI / UTR transaction ID" 
+                          className="form-input" 
+                        />
+                      </div>
+
+                      {/* 8. Gotra & Notes */}
                       <div className="form-group">
                         <label className="form-label">{t.notes}</label>
                         <textarea 
-                          rows="3"
+                          rows="2"
                           value={bookingForm.notes}
                           onChange={(e) => setBookingForm({ ...bookingForm, notes: e.target.value })}
                           placeholder="Any specific family name, gotra details..." 
@@ -3084,7 +3385,7 @@ export default function App() {
                       <button 
                         type="submit" 
                         className="btn-primary" 
-                        style={{ width: "100%", marginTop: "10px" }}
+                        style={{ width: "100%", marginTop: "10px", padding: "12px", fontSize: "13px", fontWeight: "700" }}
                       >
                         {t.proceedPayment}
                       </button>
@@ -3374,7 +3675,7 @@ export default function App() {
                           ))}
                         </div>
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                        <div className="bookings-grid-desktop" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                           {(() => {
                             const filteredAstroBookings = bookings.filter(b => {
                               if (astroBookingFilter === "all") return true;
@@ -3801,7 +4102,7 @@ export default function App() {
                         </div>
 
                         {/* Accordion 1: Personal & Professional Details */}
-                        <div className="premium-card" style={{ padding: 0, overflow: "hidden", borderRadius: "16px" }}>
+                        <div className="premium-card" style={{ padding: 0, overflow: "visible", borderRadius: "16px" }}>
                           <div 
                             onClick={() => setProfileAccordion(profileAccordion === "personal" ? "" : "personal")}
                             style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: "var(--warm-cream-darker)", borderBottom: profileAccordion === "personal" ? "1px solid var(--border-color)" : "none" }}
@@ -3814,10 +4115,10 @@ export default function App() {
                           </div>
                           {profileAccordion === "personal" && (
                             <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                              <div style={{ fontSize: "14px", display: "grid", gridTemplateColumns: "1fr 2fr", gap: "8px" }}>
+                              <div style={{ fontSize: "13px", display: "grid", gridTemplateColumns: "minmax(90px, 1fr) minmax(130px, 2fr)", gap: "8px", wordBreak: "break-word", overflowWrap: "anywhere" }}>
                                 <strong>Name:</strong> <span>{currentUser?.name || "Acharya Shastri"}</span>
                                 <strong>Profile ID:</strong> <span>{currentUser?.profileId || "DEV-AST-00001"}</span>
-                                <strong>Email:</strong> <span>{currentUser?.email || "Not Provided"}</span>
+                                <strong>Email:</strong> <span style={{ wordBreak: "break-all" }}>{currentUser?.email || "Not Provided"}</span>
                                 <strong>Mobile:</strong> <span>{currentUser?.phone || "+91 91234 56789"}</span>
                                 <strong>State:</strong> <span>{currentUser?.state || "Uttar Pradesh"}</span>
                                 <strong>District:</strong> <span>{currentUser?.district || "Not Provided"}</span>
@@ -4161,8 +4462,9 @@ export default function App() {
                   </div>
                 </>
               )}
-            </>
-          )}
+                  </div>
+                </div>
+              )}
 
           {/* Slide-out Drawer for Astrologer Menu */}
           {showAstroMenu && (
@@ -4416,8 +4718,8 @@ export default function App() {
                   <form 
                     onSubmit={async (e) => {
                       e.preventDefault();
-                      if (!forgotPinProfileId || !forgotPinMobile) {
-                        setForgotPinError("Please enter Profile ID and Mobile Number.");
+                      if (!forgotPinMobile) {
+                        setForgotPinError("Please enter your registered mobile number.");
                         return;
                       }
                       setForgotPinSubmitting(true);
@@ -4426,7 +4728,7 @@ export default function App() {
                         const res = await fetch(`${API_BASE}/api/auth/forgot-pin/request`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ profileId: forgotPinProfileId, mobile: forgotPinMobile })
+                          body: JSON.stringify({ mobile: forgotPinMobile })
                         });
                         const data = await res.json();
                         if (!res.ok) {
@@ -4440,35 +4742,26 @@ export default function App() {
                         setForgotPinSubmitting(false);
                       }
                     }}
-                    style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+                    style={{ display: "flex", flexDirection: "column", gap: "14px" }}
                   >
-                    <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
-                      Submit your registered Profile ID and Mobile Number. A manual reset request will be dispatched to Devsetu Administration.
+                    <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.5", margin: 0 }}>
+                      Enter your registered 10-digit mobile number below. A reset request will be sent to Devsetu Administration to manually verify and issue your PIN.
                     </p>
 
                     {forgotPinError && (
-                      <div style={{ padding: "8px", borderRadius: "6px", backgroundColor: "rgba(198, 40, 40, 0.05)", border: "1px solid var(--error)", fontSize: "11px", color: "var(--error)" }}>
+                      <div style={{ padding: "10px", borderRadius: "8px", backgroundColor: "rgba(198, 40, 40, 0.08)", border: "1px solid var(--error)", fontSize: "11px", color: "var(--error)" }}>
                         {forgotPinError}
                       </div>
                     )}
-
-                    <div className="minimal-input-wrapper">
-                      <span className="minimal-input-icon">👤</span>
-                      <input 
-                        type="text"
-                        required
-                        placeholder="Profile ID (e.g. DEV-AST-000001)"
-                        className="minimal-input"
-                        value={forgotPinProfileId}
-                        onChange={(e) => setForgotPinProfileId(e.target.value.trim().toUpperCase())}
-                      />
-                    </div>
 
                     <div className="minimal-input-wrapper">
                       <span className="minimal-input-icon">📱</span>
                       <input 
                         type="tel"
                         required
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={10}
                         placeholder="Registered Mobile Number"
                         className="minimal-input"
                         value={forgotPinMobile}
@@ -4480,34 +4773,34 @@ export default function App() {
                       type="submit" 
                       disabled={forgotPinSubmitting} 
                       className="btn-primary" 
-                      style={{ width: "100%", padding: "10px", marginTop: "6px" }}
+                      style={{ width: "100%", padding: "12px", marginTop: "4px", fontSize: "13px", fontWeight: "700" }}
                     >
-                      {forgotPinSubmitting ? "Submitting..." : "Submit Reset Request"}
+                      {forgotPinSubmitting ? "Submitting..." : "Send Request to Admin"}
                     </button>
                   </form>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    <div style={{ padding: "10px", borderRadius: "8px", backgroundColor: "rgba(46, 125, 50, 0.05)", border: "1px solid var(--success)", color: "var(--success)", fontSize: "11px", textAlign: "center" }}>
-                      ✓ Request Submitted Successfully to Administrator
+                    <div style={{ padding: "10px", borderRadius: "8px", backgroundColor: "rgba(46, 125, 50, 0.08)", border: "1px solid var(--success)", color: "var(--success)", fontSize: "12px", textAlign: "center", fontWeight: "700" }}>
+                      ✓ Request Sent to Devsetu Admin
                     </div>
 
                     <div style={{
                       backgroundColor: "rgba(43, 27, 18, 0.03)",
                       border: "1px solid var(--border-color)",
                       borderRadius: "8px",
-                      padding: "10px",
+                      padding: "12px",
                       fontSize: "11px",
                       display: "flex",
                       flexDirection: "column",
                       gap: "6px"
                     }}>
-                      <div><strong>Request ID:</strong> <span style={{ fontFamily: "monospace" }}>{forgotPinResponse.id || "REQ-XXXX"}</span></div>
-                      <div><strong>Date:</strong> {formatDate(forgotPinResponse.requestDate || new Date())}</div>
+                      <div><strong>Request ID:</strong> <span style={{ fontFamily: "monospace" }}>{forgotPinResponse.id || "PRR-XXXXXX"}</span></div>
+                      <div><strong>Mobile Number:</strong> {forgotPinResponse.phone || forgotPinMobile}</div>
                       <div><strong>Status:</strong> <span style={{ color: "var(--warning)", fontWeight: "800" }}>{forgotPinResponse.status || "pending"}</span></div>
                     </div>
 
-                    <p style={{ fontSize: "10px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
-                      Copy the template below and send it to Devsetu Administration via WhatsApp or SMS for faster verification:
+                    <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
+                      Devsetu Admin will manually verify your request and send your Login PIN. You can also copy the template below to contact Admin directly:
                     </p>
 
                     <div style={{
@@ -4522,23 +4815,22 @@ export default function App() {
                       lineHeight: "1.3"
                     }}>
                       {`Namaste Devsetu Admin, I have submitted a PIN Reset Request. Details:
-- ID: ${forgotPinResponse.id}
-- Profile ID: ${forgotPinResponse.profileId}
-- Mobile: ${forgotPinResponse.phone}
-Please generate a temporary PIN. Thank you.`}
+- Request ID: ${forgotPinResponse.id}
+- Mobile: ${forgotPinResponse.phone || forgotPinMobile}
+Please confirm manually and send my Login PIN. Thank you.`}
                     </div>
 
                     <button
                       type="button"
                       className="btn-primary"
                       onClick={() => {
-                        const text = `Namaste Devsetu Admin, I have submitted a PIN Reset Request. Details:\n- ID: ${forgotPinResponse.id}\n- Profile ID: ${forgotPinResponse.profileId}\n- Mobile: ${forgotPinResponse.phone}\nPlease generate a temporary PIN. Thank you.`;
+                        const text = `Namaste Devsetu Admin, I have submitted a PIN Reset Request. Details:\n- Request ID: ${forgotPinResponse.id}\n- Mobile: ${forgotPinResponse.phone || forgotPinMobile}\nPlease confirm manually and send my Login PIN. Thank you.`;
                         navigator.clipboard.writeText(text);
                         alert("Request template copied to clipboard!");
                       }}
                       style={{ width: "100%", padding: "10px" }}
                     >
-                      Copy Request Template
+                      Copy Message Template
                     </button>
 
                     <button
@@ -4594,10 +4886,10 @@ Please generate a temporary PIN. Thank you.`}
         <section className="dashboard-column">
           {!isAdminLoggedIn ? (
             /* ADMIN LOGIN PORTAL */
-            <div className="fade-in" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", width: "100%", padding: "40px", backgroundColor: "var(--warm-cream)" }}>
-              <div className="premium-card" style={{ display: "flex", flexDirection: "row", width: "100%", maxWidth: "800px", padding: 0, overflow: "hidden", minHeight: "450px" }}>
+            <div className="admin-login-container fade-in">
+              <div className="premium-card admin-login-card">
                 {/* Left Visual Branding */}
-                <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "40px", background: "linear-gradient(135deg, var(--primary-brown), var(--secondary-brown))", color: "#fff8f0", width: "40%", position: "relative" }} className="admin-login-visual">
+                <div className="admin-login-visual">
                   <div className="bg-drift-pattern" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}></div>
                   <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center", position: "relative", zIndex: 2, padding: "20px" }}>
                     <img 
@@ -4644,7 +4936,7 @@ Please generate a temporary PIN. Thank you.`}
                   } catch (err) {
                     alert("Network error during admin authentication.");
                   }
-                }} style={{ padding: "40px", width: "60%", display: "flex", flexDirection: "column", justifyContent: "center", gap: "20px" }}>
+                }} className="admin-login-form">
                   <div>
                     <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "22px", color: "var(--text-main)", marginBottom: "4px" }}>
                       {localTranslations[language]?.adminSecureLogin || localTranslations.en.adminSecureLogin}
@@ -4718,7 +5010,7 @@ Please generate a temporary PIN. Thank you.`}
                     </button>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", flexWrap: "wrap", gap: "8px" }}>
                     <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                       <input type="checkbox" style={{ accentColor: "var(--temple-gold)" }} />
                       <span>Remember me</span>
@@ -4764,23 +5056,178 @@ Please generate a temporary PIN. Thank you.`}
             </div>
           ) : (
             <>
+              {/* Admin Mobile Navigation Drawer Overlay */}
+              {adminDrawerOpen && (
+                <div 
+                  className="admin-drawer-backdrop" 
+                  onClick={() => setAdminDrawerOpen(false)}
+                >
+                  <div 
+                    className="admin-drawer-container" 
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="admin-drawer-header">
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <img 
+                          src={theme === "light" ? "/devsetu_light_logo.png" : "/devsetu_dark_logo.png"}
+                          alt="DevSetu Logo" 
+                          style={{ height: "26px", width: "auto" }}
+                        />
+                        <span style={{ fontSize: "14px", fontWeight: "700", fontFamily: "var(--font-heading)" }}>Control Hub</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        className="admin-drawer-close-btn"
+                        onClick={() => setAdminDrawerOpen(false)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="admin-drawer-items">
+                      <button 
+                        onClick={() => { setAdminTab("home"); setAdminDrawerOpen(false); }} 
+                        className={`admin-drawer-item ${adminTab === "home" ? "active" : ""}`}
+                      >
+                        <TrendingUp size={16} />
+                        <span>Dashboard Home</span>
+                      </button>
+
+                      <button 
+                        onClick={() => { setAdminTab("astrologers"); setAdminDrawerOpen(false); }} 
+                        className={`admin-drawer-item ${adminTab === "astrologers" ? "active" : ""}`}
+                      >
+                        <Users size={16} />
+                        <span>Astrologer Directory</span>
+                      </button>
+
+                      <button 
+                        onClick={() => { setAdminTab("payments"); setAdminDrawerOpen(false); }} 
+                        className={`admin-drawer-item ${adminTab === "payments" ? "active" : ""}`}
+                      >
+                        <CreditCard size={16} />
+                        <span>Payment Verification</span>
+                      </button>
+
+                      <button 
+                        onClick={() => { setAdminTab("bookings"); setAdminDrawerOpen(false); }} 
+                        className={`admin-drawer-item ${adminTab === "bookings" ? "active" : ""}`}
+                      >
+                        <Calendar size={16} />
+                        <span>Booking Operations</span>
+                      </button>
+
+                      <button 
+                        onClick={() => { setAdminTab("support"); setAdminDrawerOpen(false); }} 
+                        className={`admin-drawer-item ${adminTab === "support" ? "active" : ""}`}
+                      >
+                        <MessageSquare size={16} />
+                        <span>Support Console</span>
+                      </button>
+
+                      <button 
+                        onClick={() => { setAdminTab("notifications"); setAdminDrawerOpen(false); }} 
+                        className={`admin-drawer-item ${adminTab === "notifications" ? "active" : ""}`}
+                      >
+                        <Bell size={16} />
+                        <span>Notifications Panel</span>
+                      </button>
+
+                      <button 
+                        onClick={() => { setAdminTab("reports"); setAdminDrawerOpen(false); }} 
+                        className={`admin-drawer-item ${adminTab === "reports" ? "active" : ""}`}
+                      >
+                        <span style={{ fontSize: "16px" }}>📊</span>
+                        <span>Reports Center</span>
+                      </button>
+
+                      <button 
+                        onClick={() => { setAdminTab("audit"); setAdminDrawerOpen(false); }} 
+                        className={`admin-drawer-item ${adminTab === "audit" ? "active" : ""}`}
+                      >
+                        <span style={{ fontSize: "16px" }}>📋</span>
+                        <span>Audit Trails Log</span>
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          setAdminTab("email-logs");
+                          setAdminDrawerOpen(false);
+                          fetch(`${API_BASE}/api/admin/email-logs`)
+                            .then(res => res.json())
+                            .then(data => setEmailLogs(data))
+                            .catch(e => console.warn(e));
+                        }} 
+                        className={`admin-drawer-item ${adminTab === "email-logs" ? "active" : ""}`}
+                      >
+                        <span style={{ fontSize: "16px" }}>✉️</span>
+                        <span>SMTP Email Logs</span>
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          setAdminTab("email-settings");
+                          setAdminDrawerOpen(false);
+                          fetch(`${API_BASE}/api/admin/smtp/settings`)
+                            .then(res => res.json())
+                            .then(data => setSmtpSettings(data))
+                            .catch(e => console.warn(e));
+                          fetch(`${API_BASE}/api/admin/smtp/health`)
+                            .then(res => res.json())
+                            .then(data => setSmtpHealth(data))
+                            .catch(e => console.warn(e));
+                        }} 
+                        className={`admin-drawer-item ${adminTab === "email-settings" ? "active" : ""}`}
+                      >
+                        <span style={{ fontSize: "16px" }}>⚙️</span>
+                        <span>SMTP & Notification Settings</span>
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          setAdminDrawerOpen(false);
+                          setAdminUser(null);
+                          localStorage.removeItem("devsetu_admin_user");
+                          setIsAdminLoggedIn(false);
+                        }} 
+                        className="admin-drawer-item"
+                        style={{ color: "var(--error)", borderTop: "1px solid var(--border-color)", marginTop: "12px" }}
+                      >
+                        <LogOut size={16} />
+                        <span>Log Out</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Admin Navigation Bar */}
               <div className="admin-navbar">
-                <div className="admin-nav-title">
-                  <img 
-                    src={theme === "light" 
-                      ? "/devsetu_light_logo.png" 
-                      : "/devsetu_dark_logo.png"}
-                    alt="DevSetu Logo" 
-                    style={{ height: "30px", width: "auto" }}
-                  />
-                  <span style={{ fontSize: "14px", fontWeight: "700", marginLeft: "8px", fontFamily: "var(--font-heading)" }}>Control Hub</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <button 
+                    type="button"
+                    onClick={() => setAdminDrawerOpen(true)}
+                    className="admin-hamburger-btn"
+                    aria-label="Open Navigation Drawer"
+                  >
+                    ☰
+                  </button>
+                  <div className="admin-nav-title">
+                    <img 
+                      src={theme === "light" 
+                        ? "/devsetu_light_logo.png" 
+                        : "/devsetu_dark_logo.png"}
+                      alt="DevSetu Logo" 
+                      style={{ height: "28px", width: "auto" }}
+                    />
+                    <span style={{ fontSize: "14px", fontWeight: "700", fontFamily: "var(--font-heading)" }}>Control Hub</span>
+                  </div>
                 </div>
                 
-                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "12px", fontWeight: "800" }}>System Administrator</div>
-                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", alignItems: "center" }}>
+                    <div style={{ fontSize: "11px", fontWeight: "800", whiteSpace: "nowrap" }}>System Administrator</div>
+                    <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
                       <span style={{ fontSize: "9px", color: "var(--success)", fontWeight: "700" }}>● Active</span>
                       <button 
                         type="button"
@@ -4809,7 +5256,7 @@ Please generate a temporary PIN. Thank you.`}
                       </button>
                     </div>
                   </div>
-                  <div style={{ width: "36px", height: "36px", borderRadius: "50%", backgroundColor: "var(--primary-brown)", display: "flex", alignItems: "center", justifycontent: "center", color: "var(--temple-gold)", cursor: "pointer" }} onClick={() => {
+                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "var(--primary-brown)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--temple-gold)", cursor: "pointer", flexShrink: 0 }} onClick={() => {
                     setShowAdminSecurityModal(true);
                     setAdminSecurityError(null);
                     setAdminCurrentPassword("");
@@ -7703,47 +8150,64 @@ Please generate a temporary PIN. Thank you.`}
               )}
 
               {showPrivacyModal && (
-                <div style={{
-                  position: "fixed",
-                  inset: 0,
-                  backgroundColor: "rgba(0,0,0,0.5)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  zIndex: 9999,
-                  backdropFilter: "blur(4px)"
-                }} className="fade-in">
-                  <div className="premium-card" style={{
-                    width: "100%",
-                    maxWidth: "420px",
-                    padding: "24px",
-                    backgroundColor: "var(--bg-card)",
-                    border: "1px solid var(--temple-gold)",
-                    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+                <div 
+                  onClick={() => setShowPrivacyModal(false)}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    backgroundColor: "rgba(0,0,0,0.65)",
                     display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
-                    position: "relative"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 10000,
+                    backdropFilter: "blur(4px)",
+                    padding: "16px"
+                  }} 
+                  className="fade-in"
+                >
+                  <div 
+                    className="premium-card" 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      width: "100%",
+                      maxWidth: "440px",
+                      maxHeight: "85vh",
+                      padding: "20px",
+                      backgroundColor: "var(--bg-card)",
+                      border: "1.5px solid var(--temple-gold)",
+                      borderRadius: "16px",
+                      boxShadow: "0 20px 40px rgba(0,0,0,0.35)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "14px",
+                      position: "relative"
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "10px" }}>
                       <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0 }}>
-                        Privacy Policy
+                        🔒 Privacy Policy & Data Security
                       </h3>
                       <button 
                         onClick={() => setShowPrivacyModal(false)}
-                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "var(--text-muted)" }}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "var(--text-muted)", padding: "2px 6px" }}
+                        aria-label="Close Privacy Policy"
                       >
                         ✕
                       </button>
                     </div>
-                    <div style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.5", maxHeight: "250px", overflowY: "auto", paddingRight: "8px" }}>
-                      <p>We respect your privacy and protect your personal information. This Privacy Policy details how we handle the collection, storage, and processing of your details.</p>
-                      <p><strong>1. Information Collection:</strong> We collect details during registration (Name, Email, Mobile Number, State, City, Experience) to verify your credentials and match you with ritual services.</p>
-                      <p><strong>2. Data Encryption:</strong> Your account password is hashed securely using high-iteration PBKDF2 cryptography with unique random salts. Plaintext passwords are never stored.</p>
-                      <p><strong>3. Third-party Sharing:</strong> We do not share your contact details, client info, or transaction screenshots with external parties. They are used exclusively for verification and support desk chats.</p>
+                    <div style={{ fontSize: "12px", color: "var(--text-main)", lineHeight: "1.6", maxHeight: "55vh", overflowY: "auto", paddingRight: "6px" }}>
+                      <p style={{ marginTop: 0 }}>We respect your privacy and protect your personal information. This Privacy Policy details how we handle the collection, storage, and processing of your details on <strong>DEVSETU Connect</strong>.</p>
+                      <p style={{ marginTop: "8px" }}><strong>1. Information Collection:</strong> We collect details during registration (Name, Email, Mobile Number, State, City, Experience) solely to verify your credentials and match you with sacred ritual services.</p>
+                      <p style={{ marginTop: "8px" }}><strong>2. Data Encryption & Security:</strong> Your account password is hashed securely using PBKDF2 cryptography with unique random salts. Plaintext passwords or security credentials are never stored or transmitted.</p>
+                      <p style={{ marginTop: "8px" }}><strong>3. Third-party Sharing:</strong> We do not share your contact details, client info, or transaction screenshots with external marketing entities. All records are used strictly for partner verification and support communications.</p>
                     </div>
-                    <button type="button" onClick={() => setShowPrivacyModal(false)} className="btn-primary" style={{ width: "100%", padding: "10px" }}>
-                      I Accept
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPrivacyModal(false)} 
+                      className="btn-primary" 
+                      style={{ width: "100%", padding: "12px", fontSize: "13px", fontWeight: "700" }}
+                    >
+                      I Accept & Agree
                     </button>
                   </div>
                 </div>
@@ -7832,8 +8296,8 @@ Please generate a temporary PIN. Thank you.`}
                     </div>
                     <div style={{ fontSize: "12px", color: "var(--text-main)", lineHeight: "1.6" }}>
                       <p>For immediate support regarding slot scheduling, payment approval, or app queries, reach out below:</p>
-                      <p><strong>📧 Support Email:</strong> support@devsetu.com</p>
-                      <p><strong>📞 Admin Hotline:</strong> +91 9999999999</p>
+                      <p><strong>📧 Support Email:</strong> <a href={SUPPORT_CONFIG.mailtoHref} style={{ color: "inherit", textDecoration: "underline" }}>{SUPPORT_CONFIG.email}</a></p>
+                      <p><strong>📞 Admin Hotline:</strong> <a href={SUPPORT_CONFIG.telHref} style={{ color: "inherit", textDecoration: "underline" }}>{SUPPORT_CONFIG.phone}</a></p>
                       <p><strong>⏰ Help Desk Hours:</strong> 9:00 AM - 6:00 PM IST (Mon-Sat)</p>
                     </div>
                     <button type="button" onClick={() => setShowContactModal(false)} className="btn-primary" style={{ width: "100%", padding: "10px" }}>

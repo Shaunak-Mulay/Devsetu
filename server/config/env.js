@@ -11,13 +11,13 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 export const config = {
   port: process.env.PORT || 5000,
   smtp: {
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : undefined,
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM,
+    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+    port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
+    user: process.env.SMTP_USER || process.env.SMTP_LOGIN,
+    pass: process.env.SMTP_PASSWORD || process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || 'noreply@devsetu.in',
     fromName: process.env.SMTP_FROM_NAME || 'Devsetu Connect',
-    fromEmail: process.env.SMTP_FROM_EMAIL || 'noreply@devsetu.in',
+    fromEmail: process.env.SMTP_FROM_EMAIL || process.env.SMTP_FROM || 'noreply@devsetu.in',
     emailEnabled: process.env.EMAIL_ENABLED !== 'false'
   },
   twilio: {
@@ -28,5 +28,10 @@ export const config = {
   },
   fcm: {
     serverKey: process.env.FCM_SERVER_KEY
+  },
+  support: {
+    phone: process.env.SUPPORT_PHONE || '+91 97631 47067',
+    rawPhone: process.env.SUPPORT_RAW_PHONE || '+919763147067',
+    email: process.env.SUPPORT_EMAIL || 'devsetuconnect@gmail.com'
   }
 };

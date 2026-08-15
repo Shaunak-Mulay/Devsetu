@@ -2,6 +2,7 @@ import { dbService } from '../services/dbService.js';
 import { notificationService } from '../notifications/notificationService.js';
 import { logAuditEvent } from '../services/auditService.js';
 import { hashPassword } from '../utils/crypto.js';
+import { sanitizeUser } from '../utils/serializers.js';
 
 export async function getPinResets(req, res) {
   try {
@@ -93,7 +94,7 @@ export async function resetPin(req, res) {
       relatedProfileId: user.profileId
     });
 
-    res.json({ success: true, tempPin, request, message: "PIN reset successfully. Temporary PIN generated." });
+    res.json({ success: true, tempPin, request: sanitizeUser(request), message: "PIN reset successfully. Temporary PIN generated." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to reset PIN." });

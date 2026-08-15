@@ -3,8 +3,9 @@
 
 class PaymentService {
   constructor() {
-    // Read backend base URL from localStorage (dynamic configuration)
-    this.apiBase = localStorage.getItem("devsetu_api_base") || "https://devsetu-4wav.onrender.com";
+    const saved = localStorage.getItem("devsetu_api_base");
+    const base = saved || "https://devsetu-eta.vercel.app";
+    this.apiBase = base.replace(/\/+$/, "");
   }
 
   /**

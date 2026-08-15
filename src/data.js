@@ -1,5 +1,13 @@
 // DEVSETU Mock Data & Localization Dictionary
 
+export const SUPPORT_CONFIG = {
+  phone: "+91 97631 47067",
+  rawPhone: "+919763147067",
+  telHref: "tel:+919763147067",
+  email: "devsetuconnect@gmail.com",
+  mailtoHref: "mailto:devsetuconnect@gmail.com"
+};
+
 export const servicesData = [
   {
     id: "mahamrityunjaya",
@@ -314,8 +322,8 @@ export const translations = {
     
     // Booking Form
     bookingFormTitle: "New Booking Request",
-    clientName: "Client Name",
-    clientMobile: "Client Mobile Number",
+    clientName: "Yajmaan (Client) Full Name",
+    clientMobile: "Yajmaan Mobile Number",
     city: "Performance City",
     selectCity: "Select City",
     preferredDate: "Preferred Pooja Date",
@@ -440,8 +448,8 @@ export const translations = {
     bookNow: "बुक करें",
     
     bookingFormTitle: "नया बुकिंग अनुरोध",
-    clientName: "ग्राहक का नाम",
-    clientMobile: "ग्राहक का मोबाइल नंबर",
+    clientName: "यजमान का पूरा नाम",
+    clientMobile: "यजमान का मोबाइल नंबर",
     city: "अनुष्ठान का शहर",
     selectCity: "शहर चुनें",
     preferredDate: "पसंदीदा पूजा तिथि",
@@ -559,8 +567,8 @@ export const translations = {
     bookNow: "बुक करा",
     
     bookingFormTitle: "नवीन बुकिंग विनंती",
-    clientName: "ग्राहकाचे नाव",
-    clientMobile: "ग्राहकाचा मोबाईल नंबर",
+    clientName: "यजमानाचे पूर्ण नाव",
+    clientMobile: "यजमानाचा मोबाईल नंबर",
     city: "विधीचे शहर",
     selectCity: "शहर निवडा",
     preferredDate: "पसंतीची पूजा तारीख",

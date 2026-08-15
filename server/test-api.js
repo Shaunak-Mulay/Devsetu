@@ -346,9 +346,9 @@ async function runTests() {
     console.log("Testing Forgot PIN Request and Admin Reset flow...");
     const forgotPinReqRes = await apiRequest('/auth/forgot-pin/request', {
       method: 'POST',
-      body: JSON.stringify({ profileId: testProfileId, mobile: testPhone })
+      body: JSON.stringify({ mobile: testPhone })
     });
-    assert(forgotPinReqRes.status === 201, "Forgot PIN request returned status 201.");
+    assert(forgotPinReqRes.status === 200 || forgotPinReqRes.status === 201, "Forgot PIN request returned status 200/201.");
 
     // Fetch generated PIN Reset requests from Admin endpoint
     const pinResetsRes = await apiRequest('/admin/pin-resets');

@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { config } from './config/env.js';
 import { corsMiddleware } from './middlewares/cors.js';
 import { loggerMiddleware } from './middlewares/logger.js';
@@ -12,6 +14,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import debugRoutes from './routes/debugRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 
+import { getSmtpHealth } from './controllers/emailController.js';
 import { updatePrefs } from './controllers/notificationController.js';
 
 const app = express();
@@ -32,8 +35,23 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/debug', debugRoutes); // /api/debug/outbox
 app.use('/api/payment', paymentRoutes); // /api/payment/qr
 
-// Special notifications preference route mapping for backward compatibility
+// Email health endpoint & backward compatibility routes
+app.get('/api/email/health', getSmtpHealth);
 app.post('/api/users/notification-preferences', updatePrefs);
+
+// Serve static assets from front-end build directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// Fallback to index.html for Single Page Application routing (excluding API routes)
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
+});
 
 // Server Listen
 app.listen(PORT, '0.0.0.0', () => {

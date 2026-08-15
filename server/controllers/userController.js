@@ -2,11 +2,12 @@ import { dbService } from '../services/dbService.js';
 import { notificationService } from '../notifications/notificationService.js';
 import { logAuditEvent } from '../services/auditService.js';
 import { sheetsService } from '../services/sheetsService.js';
+import { sanitizeUser, sanitizeUsers } from '../utils/serializers.js';
 
 export async function getUsers(req, res) {
   try {
     const users = await dbService.getCollection('users') || [];
-    res.json(users);
+    res.json(sanitizeUsers(users));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to retrieve users." });
@@ -75,7 +76,7 @@ export async function updateUserStatus(req, res) {
     // Trigger future Google Sheets sync
     await sheetsService.syncAstrologer(updatedUser);
 
-    res.json(updatedUser);
+    res.json(sanitizeUser(updatedUser));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update user status." });
@@ -118,7 +119,7 @@ export async function updateUserProfile(req, res) {
     // Trigger future Google Sheets sync
     await sheetsService.syncAstrologer(updatedUser);
 
-    res.json(updatedUser);
+    res.json(sanitizeUser(updatedUser));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update user profile." });

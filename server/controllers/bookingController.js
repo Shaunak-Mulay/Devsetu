@@ -14,9 +14,26 @@ export async function getBookings(req, res) {
 }
 
 export async function createBooking(req, res) {
-  const { id, astrologerName, astrologerProfileId, serviceId, packageName, amount, astroFee, clientName, clientMobile, city, date, notes } = req.body;
+  const { 
+    id, 
+    astrologerName, 
+    astrologerProfileId, 
+    serviceId, 
+    packageName, 
+    amount, 
+    astroFee, 
+    clientName, 
+    yajmaanDob, 
+    clientMobile, 
+    poojaPlace, 
+    city, 
+    date, 
+    paymentTxnId, 
+    notes 
+  } = req.body;
+
   if (!clientName || !clientMobile || !date) {
-    return res.status(400).json({ error: "Missing required booking details." });
+    return res.status(400).json({ error: "Missing required booking details (Yajmaan Name, Mobile Number, or Pooja Performance Date)." });
   }
 
   try {
@@ -39,6 +56,8 @@ export async function createBooking(req, res) {
     const nextNum = String(maxNum + 1).padStart(6, '0');
     const bookingId = id || `${prefix}${nextNum}`;
 
+    const initialStatus = paymentTxnId ? "submitted" : "created";
+
     const newBooking = {
       id: bookingId,
       astrologerName,
@@ -48,10 +67,15 @@ export async function createBooking(req, res) {
       amount,
       astroFee,
       clientName,
+      yajmaanDob: yajmaanDob || "",
       clientMobile,
+      poojaPlace: poojaPlace || city || "",
       city,
       date,
-      status: "created",
+      status: initialStatus,
+      paymentReference: paymentTxnId || "",
+      paymentMethod: paymentTxnId ? "UPI" : "",
+      submittedAt: paymentTxnId ? new Date().toISOString() : null,
       notes,
       createdAt: new Date().toISOString()
     };

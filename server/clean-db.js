@@ -32,29 +32,13 @@ async function cleanDatabase() {
     console.log("[3/7] Wiping tickets collection...");
     await database.saveCollection('tickets', []);
 
-    // Clear all notifications and seed defaults
-    console.log("[4/7] Wiping notifications and seeding defaults...");
-    const defaultNotifs = [
-      {
-        id: "NT-87961",
-        userEmail: "verifyastro@gmail.com",
-        title: "Booking Approved",
-        body: "Your booking request for Ekam Shanti (1 Pandit) has been approved. Booking ID: BK-4411. Please check the DEVSETU app for further details.",
-        type: "success",
-        read: false,
-        createdAt: "2026-06-20T00:07:35.848Z"
-      },
-      {
-        id: "NT-INIT01",
-        userEmail: "shaunakmulay19@gmail.com",
-        title: "Welcome to DEVSETU",
-        body: "Welcome Shaunak Mulay. Your astrologer account has been successfully created. Explore categories and start booking pooja services.",
-        type: "info",
-        read: false,
-        createdAt: "2026-06-19T22:00:00Z"
-      }
-    ];
-    await database.saveCollection('notifications', defaultNotifs);
+    // Clear all notifications
+    console.log("[4/7] Wiping notifications collection...");
+    await database.saveCollection('notifications', []);
+
+    // Clear all email logs
+    console.log("[4b/7] Wiping email_logs collection...");
+    await database.saveCollection('email_logs', []);
 
     // Clear all OTP records
     console.log("[5/7] Wiping otps collection...");
@@ -65,10 +49,12 @@ async function cleanDatabase() {
     await database.saveCollection('audit_logs', []);
 
     // Reset users collection and seed the Admin account
-    console.log("[7/7] Resetting users to Admin account...");
+    console.log("[7/7] Resetting users to Admin and Test User account...");
     const adminEmail = process.env.ADMIN_EMAIL || "devsetuconnect@gmail.com";
-    const adminPin = process.env.ADMIN_PIN || "123456";
-    const { salt: adminSalt, hash: adminHash } = hashPassword(adminPin);
+    const adminPass = process.env.ADMIN_PASSWORD || "AdminP@ss123!";
+    const astroPin = process.env.DEFAULT_ASTRO_PIN || "000000";
+
+    const { salt: adminSalt, hash: adminHash } = hashPassword(adminPass);
 
     const adminUser = {
       adminId: "ADM00001",
@@ -84,7 +70,7 @@ async function cleanDatabase() {
       sessionVersion: 1
     };
 
-    const { salt: astro1Salt, hash: astro1Hash } = hashPassword("123456");
+    const { salt: astro1Salt, hash: astro1Hash } = hashPassword(astroPin);
     const defaultAstro1 = {
       profileId: "DEV-AST-000001",
       name: "Shaunak Mulay",
@@ -98,7 +84,7 @@ async function cleanDatabase() {
       sessionVersion: 1
     };
 
-    const { salt: astro2Salt, hash: astro2Hash } = hashPassword("123456");
+    const { salt: astro2Salt, hash: astro2Hash } = hashPassword(astroPin);
     const defaultAstro2 = {
       profileId: "DEV-AST-000002",
       name: "Verification Astro",

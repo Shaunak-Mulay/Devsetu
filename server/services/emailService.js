@@ -35,15 +35,16 @@ class EmailServiceClass {
   }
 
   async checkHealth() {
-    if (!this.transporter) {
-      return { status: 'unconfigured', message: 'SMTP credentials missing' };
+    const isConfigured = !!(config.smtp.host && config.smtp.user && config.smtp.pass);
+    if (!this.transporter || !isConfigured) {
+      return { configured: false, provider: 'Brevo SMTP', status: 'unconfigured', message: 'SMTP credentials missing in environment' };
     }
     try {
       await this.transporter.verify();
-      return { status: 'healthy', message: 'SMTP server is responding successfully' };
+      return { configured: true, provider: 'Brevo SMTP', status: 'connected', message: 'SMTP server responding successfully' };
     } catch (err) {
-      console.error('[EmailService] Health check failed:', err.message);
-      return { status: 'unhealthy', message: err.message };
+      console.error('[EmailService] Health check error:', err.message);
+      return { configured: true, provider: 'Brevo SMTP', status: 'disconnected', message: 'Email service temporarily unavailable.' };
     }
   }
 
@@ -267,7 +268,7 @@ class EmailServiceClass {
     </div>
     <div class="footer">
       <p>This is an automated notification from <strong>DEVSETU Connect</strong>.</p>
-      <p>For support, please call <strong>+91 80 4709 6888</strong> or email <a href="mailto:support@devsetu.com">support@devsetu.com</a>.</p>
+      <p>For support, please call <strong>${config.support.phone}</strong> or email <a href="mailto:${config.support.email}">${config.support.email}</a>.</p>
       <p>&copy; 2026 Devsetu Spiritual Services. All rights reserved.</p>
     </div>
   </div>
@@ -295,7 +296,7 @@ class EmailServiceClass {
       </div>
       <p>We will notify you immediately via email once your registration status is updated. If you have any urgent queries, please do not hesitate to contact our admin support desk.</p>
     `;
-    const text = `Namaste ${name},\n\nThank you for registering on DEVSETU Connect. Your application is currently under admin verification.\n\nProfile ID: ${profileId}\n\nSupport: +91 80 4709 6888 / support@devsetu.com`;
+    const text = `Namaste ${name},\n\nThank you for registering on DEVSETU Connect. Your application is currently under admin verification.\n\nProfile ID: ${profileId}\n\nSupport: ${config.support.phone} / ${config.support.email}`;
     return this.sendMailDirect(to, title, this.getBaseHtmlTemplate(title, content), text, 'registration_received');
   }
 
@@ -349,7 +350,7 @@ class EmailServiceClass {
       
       <p>If you believe this decision was made in error or wish to submit additional verification documents, please reach out to our partner support desk directly.</p>
     `;
-    const text = `Namaste ${name},\n\nWe regret to inform you that your DEVSETU registration request could not be approved at this time.\n\nReason: ${reason}\n\nSupport: support@devsetu.com`;
+    const text = `Namaste ${name},\n\nWe regret to inform you that your DEVSETU registration request could not be approved at this time.\n\nReason: ${reason}\n\nSupport: ${config.support.email}`;
     return this.sendMailDirect(to, title, this.getBaseHtmlTemplate(title, content), text, 'registration_rejected');
   }
 

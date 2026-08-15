@@ -51,14 +51,15 @@ function hashPassword(password, salt) {
 }
 
 const adminEmail = process.env.ADMIN_EMAIL || "devsetuconnect@gmail.com";
-const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
-const adminPin = process.env.ADMIN_PIN || "123456";
-// Hash admin credentials
-const { salt: adminSalt, hash: adminHash } = hashPassword(adminPin);
+const adminPassword = process.env.ADMIN_PASSWORD || "AdminP@ss123!";
+const astroPin = process.env.DEFAULT_ASTRO_PIN || "000000";
 
-// Hash astrologer default PINs (123456)
-const { salt: astro1Salt, hash: astro1Hash } = hashPassword("123456");
-const { salt: astro2Salt, hash: astro2Hash } = hashPassword("123456");
+// Hash admin credentials
+const { salt: adminSalt, hash: adminHash } = hashPassword(adminPassword);
+
+// Hash astrologer default PINs
+const { salt: astro1Salt, hash: astro1Hash } = hashPassword(astroPin);
+const { salt: astro2Salt, hash: astro2Hash } = hashPassword(astroPin);
 
 const defaultData = {
   users: [

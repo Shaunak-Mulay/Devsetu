@@ -3,6 +3,7 @@ import { notificationService } from '../notifications/notificationService.js';
 import { logAuditEvent } from '../services/auditService.js';
 import { hashPassword, verifyPassword } from '../utils/crypto.js';
 import { isValidPin } from '../utils/validators.js';
+import { sanitizeUser } from '../utils/serializers.js';
 
 export async function signup(req, res) {
   const { name, email, phone, password, state, city, experience, district, specialization } = req.body;
@@ -523,22 +524,24 @@ export async function resetForgotPasswordPin(req, res) {
 }
 
 export async function requestForgotPin(req, res) {
-  const { profileId, mobile } = req.body;
-  if (!profileId || !mobile) {
-    return res.status(400).json({ error: "Profile ID and mobile number are required." });
+  const { mobile, phone } = req.body;
+  const targetMobile = (mobile || phone || '').replace(/[^0-9]/g, '');
+
+  if (!targetMobile) {
+    return res.status(400).json({ error: "Registered mobile number is required." });
   }
 
   try {
     const users = await dbService.getCollection('users') || [];
-    const user = users.find(u => u.profileId === profileId && (u.phone === mobile || u.mobile === mobile));
+    const user = users.find(u => (u.phone && u.phone.replace(/[^0-9]/g, '') === targetMobile) || (u.mobile && u.mobile.replace(/[^0-9]/g, '') === targetMobile));
     if (!user) {
-      return res.status(404).json({ error: "No astrologer account matches the provided Profile ID and mobile number." });
+      return res.status(404).json({ error: "No account matches the provided mobile number. Please check your registered mobile number." });
     }
 
     const pin_reset_requests = await dbService.getCollection('pin_reset_requests') || [];
-    const existingRequest = pin_reset_requests.find(r => r.profileId === profileId && r.status === 'pending');
+    const existingRequest = pin_reset_requests.find(r => (r.phone === targetMobile || r.profileId === user.profileId) && r.status === 'pending');
     if (existingRequest) {
-      return res.status(400).json({ error: "A PIN reset request is already pending for this profile." });
+      return res.status(400).json({ error: "A PIN reset request is already pending for this mobile number. Devsetu Admin will confirm and send your PIN." });
     }
 
     const requestId = "PRR-" + Math.floor(100000 + Math.random() * 900000);
@@ -546,7 +549,7 @@ export async function requestForgotPin(req, res) {
       id: requestId,
       name: user.name,
       profileId: user.profileId,
-      phone: user.phone || user.mobile,
+      phone: targetMobile,
       registrationDate: user.createdAt || new Date().toISOString(),
       requestDate: new Date().toISOString(),
       status: "pending", 
@@ -556,9 +559,9 @@ export async function requestForgotPin(req, res) {
     pin_reset_requests.unshift(newRequest);
     await dbService.saveCollection('pin_reset_requests', pin_reset_requests);
 
-    await logAuditEvent(user.email || user.phone, "PIN Reset Request Submitted");
+    await logAuditEvent(user.email || user.phone || targetMobile, "PIN Reset Request Submitted");
 
-    const adminMsg = `Hello Admin,\n\nI am ${user.name}\nProfile ID: ${user.profileId}\nRegistered Mobile Number:\n${user.phone || user.mobile}\n\nI have forgotten my Login PIN.\nKindly reset my PIN.`;
+    const adminMsg = `Hello Admin,\n\nI am ${user.name}\nProfile ID: ${user.profileId}\nRegistered Mobile Number: ${targetMobile}\n\nI have forgotten my Login PIN.\nKindly confirm manually and send my PIN.`;
 
     await notificationService.sendNotification({
       userId: "devsetuconnect@gmail.com",
@@ -568,9 +571,13 @@ export async function requestForgotPin(req, res) {
       relatedProfileId: user.profileId
     });
 
-    res.status(201).json({ success: true, message: "PIN reset request generated successfully.", request: newRequest });
+    res.json({ 
+      success: true, 
+      request: newRequest, 
+      message: "PIN reset request submitted to Devsetu Admin. Admin will confirm manually and send your PIN." 
+    });
   } catch (err) {
-    console.error(err);
+    console.error("Error in requestForgotPin:", err);
     res.status(500).json({ error: "Failed to submit PIN reset request." });
   }
 }
