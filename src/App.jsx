@@ -553,7 +553,7 @@ export default function App() {
 
   // Support Ticket States
   const [tickets, setTickets] = useState([]);
-  const [activeTicketId, setActiveTicketId] = useState("TK-9402");
+  const [activeTicketId, setActiveTicketId] = useState(null);
   const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
   const [newTicketForm, setNewTicketForm] = useState({ category: "General Queries", subject: "" });
 
@@ -4114,12 +4114,7 @@ export default function App() {
                               const matchEmail = curEmail && (tEmail === curEmail || tProfileId === curEmail);
                               const matchPhone = curPhone && (tPhone === curPhone || tProfileId === curPhone);
 
-                              const defaultMockMatch = (
-                                (t.id === "TK-9402" || t.id === "TK-1082") && 
-                                (tProfileId.includes("1786802201962") || tProfileId.includes(curProfileId) || curName.includes("yadnesh") || curName.includes("narayan"))
-                              );
-
-                              return matchProfileId || matchName || matchEmail || matchPhone || defaultMockMatch;
+                              return matchProfileId || matchName || matchEmail || matchPhone;
                             });
 
                             if (userOwnTickets.length === 0) {
