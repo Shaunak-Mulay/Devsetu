@@ -251,27 +251,28 @@ function PaymentQRCode({ language = "en" }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", gap: "10px" }}>
       <div style={{
-        width: "230px",
-        height: "230px",
-        maxWidth: "80vw",
-        maxHeight: "80vw",
-        margin: "8px auto",
-        border: "2.5px solid var(--temple-gold)",
-        borderRadius: "16px",
+        width: "290px",
+        height: "290px",
+        maxWidth: "88vw",
+        maxHeight: "88vw",
+        margin: "12px auto",
+        border: "3px solid var(--temple-gold)",
+        borderRadius: "18px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: "#ffffff",
         position: "relative",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-        overflow: "hidden"
+        boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+        overflow: "hidden",
+        padding: "8px"
       }}>
         <img 
           src={qrUrl} 
           onError={() => setError(true)}
           alt="Payment QR Code" 
-          style={{ width: "210px", height: "210px", maxWidth: "75vw", maxHeight: "75vw", objectFit: "contain", borderRadius: "12px" }}
+          style={{ width: "270px", height: "270px", maxWidth: "84vw", maxHeight: "84vw", objectFit: "contain", borderRadius: "14px" }}
         />
       </div>
       <p style={{ 
@@ -3377,7 +3378,9 @@ export default function App() {
                         />
                       </div>
 
-                      {/* 7. Payment UPI Transaction ID */}
+                      {/* 7. Payment QR Code & UPI Transaction ID */}
+                      <PaymentQRCode language={language} />
+
                       <div className="form-group">
                         <label className="form-label">
                           {language === "hi" ? "UPI ट्रांजैक्शन आईडी (12-अंक Ref No)" : language === "mr" ? "UPI ट्रान्सझॅक्शन आयडी (12-अंकी Ref No)" : "Payment UPI Transaction ID (12-Digit Ref No)"}
