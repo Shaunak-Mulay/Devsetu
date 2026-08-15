@@ -7010,67 +7010,72 @@ Please confirm manually and send my Login PIN. Thank you.`}
 
                   {/* ADD NEW POOJA MODAL */}
                   {showAddPoojaModal && (
-                    <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: "16px" }}>
-                      <div className="premium-card" style={{ width: "100%", maxWidth: "560px", maxHeight: "90vh", overflowY: "auto", borderRadius: "18px", padding: "24px", backgroundColor: "var(--bg-main)", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px", marginBottom: "16px" }}>
-                          <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "var(--primary-brown)" }}>
+                    <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: "16px" }}>
+                      <div style={{ width: "100%", maxWidth: "580px", maxHeight: "90vh", overflowY: "auto", borderRadius: "20px", padding: "28px", backgroundColor: "#24160E", color: "#FFF6E9", border: "2px solid var(--temple-gold)", boxShadow: "0 20px 50px rgba(0,0,0,0.8)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--temple-gold)", paddingBottom: "14px", marginBottom: "18px" }}>
+                          <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "#D4AF37", fontSize: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
                             🪔 Create & Publish New Pooja
                           </h3>
-                          <button onClick={() => setShowAddPoojaModal(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "var(--text-muted)" }}>✕</button>
+                          <button onClick={() => setShowAddPoojaModal(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#FFE6A3" }}>✕</button>
                         </div>
 
-                        <form onSubmit={handleCreatePooja} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                        <form onSubmit={handleCreatePooja} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                           <div className="form-group">
-                            <label className="form-label">Pooja Title (English) *</label>
+                            <label className="form-label" style={{ color: "#FFE6A3", fontWeight: "700", fontSize: "12px" }}>Pooja Title (English) *</label>
                             <input 
                               type="text" 
                               required 
                               placeholder="e.g. Shani Grah Shanti Pooja" 
                               className="form-input" 
+                              style={{ backgroundColor: "#1C110B", color: "#FFF6E9", border: "1.5px solid var(--temple-gold)" }}
                               value={newPoojaForm.titleEN}
                               onChange={(e) => setNewPoojaForm({ ...newPoojaForm, titleEN: e.target.value })}
                             />
                           </div>
 
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                             <div className="form-group">
-                              <label className="form-label">Pooja Title (Hindi)</label>
+                              <label className="form-label" style={{ color: "#FFE6A3", fontWeight: "700", fontSize: "12px" }}>Pooja Title (Hindi)</label>
                               <input 
                                 type="text" 
                                 placeholder="e.g. शनि ग्रह शांति पूजा" 
                                 className="form-input" 
+                                style={{ backgroundColor: "#1C110B", color: "#FFF6E9", border: "1.5px solid var(--temple-gold)" }}
                                 value={newPoojaForm.titleHI}
                                 onChange={(e) => setNewPoojaForm({ ...newPoojaForm, titleHI: e.target.value })}
                               />
                             </div>
                             <div className="form-group">
-                              <label className="form-label">Pooja Title (Marathi)</label>
+                              <label className="form-label" style={{ color: "#FFE6A3", fontWeight: "700", fontSize: "12px" }}>Pooja Title (Marathi)</label>
                               <input 
                                 type="text" 
                                 placeholder="e.g. शनि ग्रह शांती पूजा" 
                                 className="form-input" 
+                                style={{ backgroundColor: "#1C110B", color: "#FFF6E9", border: "1.5px solid var(--temple-gold)" }}
                                 value={newPoojaForm.titleMR}
                                 onChange={(e) => setNewPoojaForm({ ...newPoojaForm, titleMR: e.target.value })}
                               />
                             </div>
                           </div>
 
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                             <div className="form-group">
-                              <label className="form-label">Starting Price (₹) *</label>
+                              <label className="form-label" style={{ color: "#FFE6A3", fontWeight: "700", fontSize: "12px" }}>Starting Price (₹) *</label>
                               <input 
                                 type="number" 
                                 required 
                                 placeholder="e.g. 5100" 
                                 className="form-input" 
+                                style={{ backgroundColor: "#1C110B", color: "#FFF6E9", border: "1.5px solid var(--temple-gold)" }}
                                 value={newPoojaForm.startingPrice}
                                 onChange={(e) => setNewPoojaForm({ ...newPoojaForm, startingPrice: e.target.value, packagePrice: e.target.value })}
                               />
                             </div>
                             <div className="form-group">
-                              <label className="form-label">Category</label>
+                              <label className="form-label" style={{ color: "#FFE6A3", fontWeight: "700", fontSize: "12px" }}>Category</label>
                               <select 
                                 className="form-select"
+                                style={{ backgroundColor: "#1C110B", color: "#FFF6E9", border: "1.5px solid var(--temple-gold)" }}
                                 value={newPoojaForm.category}
                                 onChange={(e) => setNewPoojaForm({ ...newPoojaForm, category: e.target.value })}
                               >
@@ -7084,68 +7089,71 @@ Please confirm manually and send my Login PIN. Thank you.`}
                           </div>
 
                           <div className="form-group">
-                            <label className="form-label">Description (English)</label>
+                            <label className="form-label" style={{ color: "#FFE6A3", fontWeight: "700", fontSize: "12px" }}>Description (English)</label>
                             <textarea 
                               rows="2" 
                               placeholder="Brief description of the ritual and its spiritual benefits..." 
                               className="form-input"
-                              style={{ resize: "none" }}
+                              style={{ resize: "none", backgroundColor: "#1C110B", color: "#FFF6E9", border: "1.5px solid var(--temple-gold)" }}
                               value={newPoojaForm.descriptionEN}
                               onChange={(e) => setNewPoojaForm({ ...newPoojaForm, descriptionEN: e.target.value })}
                             />
                           </div>
 
-                          <div style={{ borderTop: "1px dashed var(--border-color)", paddingTop: "12px" }}>
-                            <h5 style={{ fontFamily: "var(--font-heading)", margin: "0 0 8px 0", color: "var(--primary-brown)" }}>📦 Initial Package Setup</h5>
+                          <div style={{ borderTop: "1.5px dashed var(--temple-gold)", paddingTop: "14px", marginTop: "4px" }}>
+                            <h5 style={{ fontFamily: "var(--font-heading)", margin: "0 0 10px 0", color: "#D4AF37", fontSize: "14px" }}>📦 Initial Package Setup</h5>
                             
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                               <div className="form-group">
-                                <label className="form-label">Package Name</label>
+                                <label className="form-label" style={{ color: "#FFE6A3", fontWeight: "700", fontSize: "12px" }}>Package Name</label>
                                 <input 
                                   type="text" 
                                   placeholder="e.g. Ekam Shanti (1 Pandit)" 
                                   className="form-input" 
+                                  style={{ backgroundColor: "#1C110B", color: "#FFF6E9", border: "1.5px solid var(--temple-gold)" }}
                                   value={newPoojaForm.packageName}
                                   onChange={(e) => setNewPoojaForm({ ...newPoojaForm, packageName: e.target.value })}
                                 />
                               </div>
                               <div className="form-group">
-                                <label className="form-label">Astro Commission Fee (₹)</label>
+                                <label className="form-label" style={{ color: "#FFE6A3", fontWeight: "700", fontSize: "12px" }}>Astro Commission Fee (₹)</label>
                                 <input 
                                   type="number" 
                                   placeholder="e.g. 510" 
                                   className="form-input" 
+                                  style={{ backgroundColor: "#1C110B", color: "#FFF6E9", border: "1.5px solid var(--temple-gold)" }}
                                   value={newPoojaForm.astroFee}
                                   onChange={(e) => setNewPoojaForm({ ...newPoojaForm, astroFee: e.target.value })}
                                 />
                               </div>
                             </div>
 
-                            <div className="form-group" style={{ marginTop: "8px" }}>
-                              <label className="form-label">Package Ritual Details</label>
+                            <div className="form-group" style={{ marginTop: "10px" }}>
+                              <label className="form-label" style={{ color: "#FFE6A3", fontWeight: "700", fontSize: "12px" }}>Package Ritual Details</label>
                               <input 
                                 type="text" 
                                 placeholder="e.g. Complete mantra japa, samagri, and 3 hours priest setup." 
                                 className="form-input" 
+                                style={{ backgroundColor: "#1C110B", color: "#FFF6E9", border: "1.5px solid var(--temple-gold)" }}
                                 value={newPoojaForm.packageDetails}
                                 onChange={(e) => setNewPoojaForm({ ...newPoojaForm, packageDetails: e.target.value })}
                               />
                             </div>
                           </div>
 
-                          <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                          <div style={{ display: "flex", gap: "12px", marginTop: "14px" }}>
                             <button 
                               type="button"
                               onClick={() => setShowAddPoojaModal(false)}
                               className="btn-secondary"
-                              style={{ flex: 1, padding: "10px" }}
+                              style={{ flex: 1, padding: "12px", fontSize: "13px", fontWeight: "700" }}
                             >
                               Cancel
                             </button>
                             <button 
                               type="submit"
                               className="btn-primary"
-                              style={{ flex: 2, padding: "10px", fontWeight: "700" }}
+                              style={{ flex: 2, padding: "12px", fontSize: "13px", fontWeight: "800", backgroundColor: "var(--temple-gold)", color: "#2B1B12", borderColor: "var(--temple-gold)" }}
                             >
                               Publish Pooja Service ➔
                             </button>
