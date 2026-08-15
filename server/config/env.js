@@ -29,6 +29,10 @@ export const config = {
   fcm: {
     serverKey: process.env.FCM_SERVER_KEY
   },
+  firebase: {
+    apiKey: process.env.FIREBASE_API_KEY || "AIzaSyApiX1JSyhDA-6l7SQJNuqj_abr1scJ-y0",
+    databaseURL: process.env.FIREBASE_DATABASE_URL || "https://devsetu-c9cae-default-rtdb.firebaseio.com"
+  },
   support: {
     phone: process.env.SUPPORT_PHONE || '+91 97631 47067',
     rawPhone: process.env.SUPPORT_RAW_PHONE || '+919763147067',

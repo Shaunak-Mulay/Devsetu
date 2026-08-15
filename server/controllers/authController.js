@@ -4,6 +4,7 @@ import { logAuditEvent } from '../services/auditService.js';
 import { hashPassword, verifyPassword } from '../utils/crypto.js';
 import { isValidPin } from '../utils/validators.js';
 import { sanitizeUser } from '../utils/serializers.js';
+import { config } from '../config/env.js';
 
 export async function signup(req, res) {
   const { name, email, phone, password, state, city, experience, district, specialization } = req.body;
@@ -92,6 +93,26 @@ export async function signup(req, res) {
   }
 }
 
+async function verifyFirebaseAuthCredentials(email, password) {
+  const apiKey = config.firebase?.apiKey || process.env.FIREBASE_API_KEY || "AIzaSyApiX1JSyhDA-6l7SQJNuqj_abr1scJ-y0";
+  try {
+    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, returnSecureToken: true })
+    });
+    const data = await response.json();
+    if (response.ok && data.idToken) {
+      return { verified: true, firebaseUser: data };
+    }
+    return { verified: false, error: data.error?.message || "Firebase Auth verification failed." };
+  } catch (err) {
+    console.error("[Firebase Auth Verification Error]", err);
+    return { verified: false, error: err.message };
+  }
+}
+
 export async function login(req, res) {
   const { loginFormType = 'email', email, phone, password, role } = req.body;
   const targetVal = loginFormType === 'email' ? email : phone;
@@ -116,7 +137,22 @@ export async function login(req, res) {
       return false;
     });
 
-    if (user && verifyPassword(password, user.password, user.salt)) {
+    let isAuthenticated = false;
+
+    if (user && (user.role === 'admin' || role === 'admin')) {
+      // Authenticate Admin credentials directly against Firebase Authentication
+      const fbCheck = await verifyFirebaseAuthCredentials(user.email || targetVal, password);
+      if (fbCheck.verified) {
+        isAuthenticated = true;
+      } else if (verifyPassword(password, user.password, user.salt)) {
+        isAuthenticated = true;
+      }
+    } else if (user) {
+      // Astrologer login uses 6-digit PIN PBKDF2 hash verification
+      isAuthenticated = verifyPassword(password, user.password, user.salt);
+    }
+
+    if (user && isAuthenticated) {
       if (role === 'admin' && user.role !== 'admin') {
         return res.status(403).json({ error: "Access denied. Admin privileges required." });
       }
