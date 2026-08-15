@@ -4994,11 +4994,10 @@ Please confirm manually and send my Login PIN. Thank you.`}
                     <input 
                       type={adminShowPassword ? "text" : "password"} 
                       required
-                      maxLength={6}
-                      placeholder="6-Digit Admin PIN" 
+                      placeholder="Admin Password" 
                       className="minimal-input"
                       value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value.replace(/[^0-9]/g, ''))}
+                      onChange={(e) => setAdminPassword(e.target.value)}
                       style={{ paddingRight: "36px" }}
                     />
                     <button 
