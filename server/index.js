@@ -16,6 +16,7 @@ import paymentRoutes from './routes/paymentRoutes.js';
 
 import { getSmtpHealth } from './controllers/emailController.js';
 import { updatePrefs } from './controllers/notificationController.js';
+import { getServices } from './controllers/servicesController.js';
 
 const app = express();
 const PORT = config.port;
@@ -37,6 +38,7 @@ app.use('/api/payment', paymentRoutes); // /api/payment/qr
 
 // Email health endpoint & backward compatibility routes
 app.get('/api/email/health', getSmtpHealth);
+app.get('/api/services', getServices);
 app.post('/api/users/notification-preferences', updatePrefs);
 
 // Serve static assets from front-end build directory

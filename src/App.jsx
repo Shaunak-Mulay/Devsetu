@@ -560,6 +560,139 @@ export default function App() {
   // Astrologer Bookings Filter Tab State
   const [astroBookingFilter, setAstroBookingFilter] = useState("all");
 
+  // Dynamic Pooja Services State (Admin managed + default services)
+  const [poojaServices, setPoojaServices] = useState(() => {
+    const saved = localStorage.getItem("devsetu_custom_services");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.warn("Failed to parse custom services from localStorage:", e);
+      }
+    }
+    return servicesData;
+  });
+
+  const [showAddPoojaModal, setShowAddPoojaModal] = useState(false);
+  const [newPoojaForm, setNewPoojaForm] = useState({
+    titleEN: "",
+    titleHI: "",
+    titleMR: "",
+    category: "Vedic Rituals",
+    startingPrice: "",
+    descriptionEN: "",
+    descriptionHI: "",
+    descriptionMR: "",
+    packageName: "Ekam Shanti (1 Pandit)",
+    packagePrice: "",
+    astroFee: "",
+    duration: "3 Hours",
+    packageDetails: ""
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("devsetu_custom_services", JSON.stringify(poojaServices));
+    } catch (e) {
+      console.warn("Failed to save poojaServices to localStorage:", e);
+    }
+  }, [poojaServices]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/services`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const dbIds = new Set(data.map(d => d.id));
+          const merged = [...data, ...servicesData.filter(s => !dbIds.has(s.id))];
+          setPoojaServices(merged);
+        }
+      })
+      .catch(e => console.warn("Using local/cached pooja services:", e));
+  }, []);
+
+  const handleCreatePooja = async (e) => {
+    e.preventDefault();
+    if (!newPoojaForm.titleEN || !newPoojaForm.startingPrice) {
+      alert("Please enter Pooja Title and Price.");
+      return;
+    }
+
+    const priceNum = Number(newPoojaForm.startingPrice);
+    const newService = {
+      id: "pooja-" + Date.now(),
+      title: newPoojaForm.titleEN,
+      titleEN: newPoojaForm.titleEN,
+      titleHI: newPoojaForm.titleHI || newPoojaForm.titleEN,
+      titleMR: newPoojaForm.titleMR || newPoojaForm.titleEN,
+      category: newPoojaForm.category,
+      startingPrice: priceNum,
+      pattern: "pattern-shiva",
+      descriptionEN: newPoojaForm.descriptionEN || newPoojaForm.titleEN,
+      descriptionHI: newPoojaForm.descriptionHI || newPoojaForm.titleEN,
+      descriptionMR: newPoojaForm.descriptionMR || newPoojaForm.titleEN,
+      benefits: {
+        en: ["Brings peace and positive energy", "Protects against negative obstacles", "Promotes spiritual growth"],
+        hi: ["शांति और सकारात्मक ऊर्जा लाता है", "नकारात्मक बाधाओं से रक्षा करता है", "आध्यात्मिक प्रगति को बढ़ावा देता है"],
+        mr: ["शांती आणि सकारात्मक ऊर्जा आणते", "नकारात्मक अडथळ्यांपासून संरक्षण करते", "आध्यात्मिक वाढीस प्रोत्साहन देते"]
+      },
+      packages: [
+        {
+          id: "pkg-" + Date.now(),
+          name: { 
+            en: newPoojaForm.packageName || "Ekam Shanti (1 Pandit)", 
+            hi: newPoojaForm.packageName || "एकम शांति (1 पंडित)", 
+            mr: newPoojaForm.packageName || "एकम शांती (1 पंडित)" 
+          },
+          price: Number(newPoojaForm.packagePrice) || priceNum,
+          astroFee: Number(newPoojaForm.astroFee) || Math.round(priceNum * 0.1),
+          duration: { en: newPoojaForm.duration, hi: newPoojaForm.duration, mr: newPoojaForm.duration },
+          details: { 
+            en: newPoojaForm.packageDetails || "Sacred pooja ritual with standard samagri and single priest setup.", 
+            hi: newPoojaForm.packageDetails || "मानक पूजा सामग्री और एक पंडित द्वारा पवित्र पूजा अनुष्ठान।", 
+            mr: newPoojaForm.packageDetails || "प्रमाण पूजा साहित्य आणि एक गुरुजींद्वारे पवित्र पूजा विधी." 
+          }
+        }
+      ]
+    };
+
+    setPoojaServices(prev => [newService, ...prev]);
+    setShowAddPoojaModal(false);
+    setNewPoojaForm({
+      titleEN: "", titleHI: "", titleMR: "", category: "Vedic Rituals",
+      startingPrice: "", descriptionEN: "", descriptionHI: "", descriptionMR: "",
+      packageName: "Ekam Shanti (1 Pandit)", packagePrice: "", astroFee: "",
+      duration: "3 Hours", packageDetails: ""
+    });
+
+    try {
+      await fetch(`${API_BASE}/api/admin/services`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newService)
+      });
+    } catch (err) {
+      console.warn("Service saved locally:", err);
+    }
+    alert("🎉 New Pooja Service created successfully and is now visible to all astrologers!");
+  };
+
+  const handleDeletePooja = async (serviceId, serviceTitle) => {
+    if (!window.confirm(`Are you sure you want to delete "${serviceTitle}"? It will be removed from the marketplace for all astrologers.`)) return;
+
+    setPoojaServices(prev => prev.filter(s => s.id !== serviceId));
+
+    try {
+      await fetch(`${API_BASE}/api/admin/services/${serviceId}`, {
+        method: "DELETE"
+      });
+    } catch (err) {
+      console.warn("Deleted service locally:", err);
+    }
+    alert(`Pooja Service "${serviceTitle}" has been deleted.`);
+  };
+
   const [adminChatMsg, setAdminChatMsg] = useState("");
   const [adminTyping, setAdminTyping] = useState(false);
   const [selectedAdminAstrologer, setSelectedAdminAstrologer] = useState("ASTRO01");
@@ -3147,7 +3280,7 @@ export default function App() {
 
                     {/* Full Grid of Services */}
                     <div className="services-grid-desktop" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "14px" }}>
-                      {servicesData.map(service => (
+                      {poojaServices.map(service => (
                         <div 
                           key={service.id} 
                           className="premium-card" 
@@ -5177,6 +5310,14 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       </button>
 
                       <button 
+                        onClick={() => { setAdminTab("pooja-catalog"); setAdminDrawerOpen(false); }} 
+                        className={`admin-drawer-item ${adminTab === "pooja-catalog" ? "active" : ""}`}
+                      >
+                        <span style={{ fontSize: "16px" }}>🪔</span>
+                        <span>Pooja Catalog</span>
+                      </button>
+
+                      <button 
                         onClick={() => { setAdminTab("support"); setAdminDrawerOpen(false); }} 
                         className={`admin-drawer-item ${adminTab === "support" ? "active" : ""}`}
                       >
@@ -5384,6 +5525,14 @@ Please confirm manually and send my Login PIN. Thank you.`}
               >
                 <Calendar size={16} />
                 <span>Booking Operations</span>
+              </button>
+
+              <button 
+                onClick={() => setAdminTab("pooja-catalog")} 
+                className={`admin-sidebar-item ${adminTab === "pooja-catalog" ? "active" : ""}`}
+              >
+                <span style={{ fontSize: "16px", marginRight: "8px" }}>🪔</span>
+                <span>Pooja Catalog</span>
               </button>
 
               <button 
@@ -6739,6 +6888,231 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {/* POOJA CATALOG MANAGEMENT */}
+              {adminTab === "pooja-catalog" && (
+                <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+                    <div>
+                      <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "var(--primary-brown)", display: "flex", alignItems: "center", gap: "8px" }}>
+                        🪔 Pooja Services Catalog Management
+                      </h3>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
+                        Create or delete Pooja services. All active Poojas listed here are instantly available to astrologers in the Pooja Marketplace.
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setShowAddPoojaModal(true)}
+                      className="btn-primary"
+                      style={{ padding: "10px 18px", fontSize: "12px", display: "flex", alignItems: "center", gap: "8px", fontWeight: "700", boxShadow: "0 4px 12px rgba(212,175,55,0.3)" }}
+                    >
+                      ➕ Add New Pooja Service
+                    </button>
+                  </div>
+
+                  {/* Pooja Services Grid */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
+                    {poojaServices.map(service => {
+                      const title = service.titleEN || service.title;
+                      const price = service.startingPrice || 0;
+                      const pkgs = service.packages || [];
+
+                      return (
+                        <div key={service.id} className="premium-card" style={{ padding: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", overflow: "hidden", borderRadius: "16px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>
+                          <div className={`service-card-image ${service.pattern || "pattern-shiva"}`} style={{ height: "90px", padding: "12px", position: "relative" }}>
+                            <div className="service-card-title" style={{ fontSize: "15px", fontWeight: "800", textShadow: "0 2px 4px rgba(0,0,0,0.6)" }}>
+                              {title}
+                            </div>
+                            <span style={{ position: "absolute", top: "10px", right: "10px", backgroundColor: "rgba(0,0,0,0.6)", color: "var(--temple-gold)", fontSize: "10px", padding: "3px 8px", borderRadius: "12px", fontWeight: "700" }}>
+                              {service.category || "Vedic Rituals"}
+                            </span>
+                          </div>
+
+                          <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
+                            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: "1.4" }}>
+                              {service.descriptionEN || service.descriptionHI || "Sacred Vedic ritual to promote health, prosperity, and peace."}
+                            </p>
+
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", backgroundColor: "rgba(212,175,55,0.06)", padding: "8px 12px", borderRadius: "8px", border: "1px dashed var(--border-color)" }}>
+                              <span style={{ color: "var(--text-muted)", fontWeight: "600" }}>Starting Price:</span>
+                              <strong style={{ color: "var(--orange-accent)", fontSize: "14px" }}>₹{price.toLocaleString()}</strong>
+                            </div>
+
+                            <div style={{ fontSize: "11px" }}>
+                              <strong style={{ color: "var(--primary-brown)", fontSize: "11px" }}>Configured Packages ({pkgs.length}):</strong>
+                              <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", color: "var(--text-muted)", fontSize: "10px" }}>
+                                {pkgs.map((pkg, idx) => (
+                                  <li key={idx}>
+                                    {(pkg.name?.en || pkg.name || "Package")} — <strong>₹{pkg.price?.toLocaleString()}</strong> (Fee: ₹{pkg.astroFee})
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-color)", backgroundColor: "var(--warm-cream-darker)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>ID: {service.id}</span>
+                            <button 
+                              onClick={() => handleDeletePooja(service.id, title)}
+                              className="btn-primary"
+                              style={{ padding: "6px 12px", fontSize: "11px", backgroundColor: "var(--error)", borderColor: "var(--error)", color: "#fff", display: "flex", alignItems: "center", gap: "4px", fontWeight: "700" }}
+                            >
+                              🗑️ Delete Pooja
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ADD NEW POOJA MODAL */}
+                  {showAddPoojaModal && (
+                    <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: "16px" }}>
+                      <div className="premium-card" style={{ width: "100%", maxWidth: "560px", maxHeight: "90vh", overflowY: "auto", borderRadius: "18px", padding: "24px", backgroundColor: "var(--bg-main)", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px", marginBottom: "16px" }}>
+                          <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "var(--primary-brown)" }}>
+                            🪔 Create & Publish New Pooja
+                          </h3>
+                          <button onClick={() => setShowAddPoojaModal(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "var(--text-muted)" }}>✕</button>
+                        </div>
+
+                        <form onSubmit={handleCreatePooja} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                          <div className="form-group">
+                            <label className="form-label">Pooja Title (English) *</label>
+                            <input 
+                              type="text" 
+                              required 
+                              placeholder="e.g. Shani Grah Shanti Pooja" 
+                              className="form-input" 
+                              value={newPoojaForm.titleEN}
+                              onChange={(e) => setNewPoojaForm({ ...newPoojaForm, titleEN: e.target.value })}
+                            />
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            <div className="form-group">
+                              <label className="form-label">Pooja Title (Hindi)</label>
+                              <input 
+                                type="text" 
+                                placeholder="e.g. शनि ग्रह शांति पूजा" 
+                                className="form-input" 
+                                value={newPoojaForm.titleHI}
+                                onChange={(e) => setNewPoojaForm({ ...newPoojaForm, titleHI: e.target.value })}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label">Pooja Title (Marathi)</label>
+                              <input 
+                                type="text" 
+                                placeholder="e.g. शनि ग्रह शांती पूजा" 
+                                className="form-input" 
+                                value={newPoojaForm.titleMR}
+                                onChange={(e) => setNewPoojaForm({ ...newPoojaForm, titleMR: e.target.value })}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            <div className="form-group">
+                              <label className="form-label">Starting Price (₹) *</label>
+                              <input 
+                                type="number" 
+                                required 
+                                placeholder="e.g. 5100" 
+                                className="form-input" 
+                                value={newPoojaForm.startingPrice}
+                                onChange={(e) => setNewPoojaForm({ ...newPoojaForm, startingPrice: e.target.value, packagePrice: e.target.value })}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label">Category</label>
+                              <select 
+                                className="form-select"
+                                value={newPoojaForm.category}
+                                onChange={(e) => setNewPoojaForm({ ...newPoojaForm, category: e.target.value })}
+                              >
+                                <option value="Vedic Rituals">Vedic Rituals</option>
+                                <option value="Dosh Nivaran">Dosh Nivaran</option>
+                                <option value="Graha Shanti">Graha Shanti</option>
+                                <option value="Prosperity & Kuber">Prosperity & Kuber</option>
+                                <option value="Custom Special Ritual">Custom Special Ritual</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label className="form-label">Description (English)</label>
+                            <textarea 
+                              rows="2" 
+                              placeholder="Brief description of the ritual and its spiritual benefits..." 
+                              className="form-input"
+                              style={{ resize: "none" }}
+                              value={newPoojaForm.descriptionEN}
+                              onChange={(e) => setNewPoojaForm({ ...newPoojaForm, descriptionEN: e.target.value })}
+                            />
+                          </div>
+
+                          <div style={{ borderTop: "1px dashed var(--border-color)", paddingTop: "12px" }}>
+                            <h5 style={{ fontFamily: "var(--font-heading)", margin: "0 0 8px 0", color: "var(--primary-brown)" }}>📦 Initial Package Setup</h5>
+                            
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                              <div className="form-group">
+                                <label className="form-label">Package Name</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. Ekam Shanti (1 Pandit)" 
+                                  className="form-input" 
+                                  value={newPoojaForm.packageName}
+                                  onChange={(e) => setNewPoojaForm({ ...newPoojaForm, packageName: e.target.value })}
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label className="form-label">Astro Commission Fee (₹)</label>
+                                <input 
+                                  type="number" 
+                                  placeholder="e.g. 510" 
+                                  className="form-input" 
+                                  value={newPoojaForm.astroFee}
+                                  onChange={(e) => setNewPoojaForm({ ...newPoojaForm, astroFee: e.target.value })}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="form-group" style={{ marginTop: "8px" }}>
+                              <label className="form-label">Package Ritual Details</label>
+                              <input 
+                                type="text" 
+                                placeholder="e.g. Complete mantra japa, samagri, and 3 hours priest setup." 
+                                className="form-input" 
+                                value={newPoojaForm.packageDetails}
+                                onChange={(e) => setNewPoojaForm({ ...newPoojaForm, packageDetails: e.target.value })}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                            <button 
+                              type="button"
+                              onClick={() => setShowAddPoojaModal(false)}
+                              className="btn-secondary"
+                              style={{ flex: 1, padding: "10px" }}
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit"
+                              className="btn-primary"
+                              style={{ flex: 2, padding: "10px", fontWeight: "700" }}
+                            >
+                              Publish Pooja Service ➔
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
