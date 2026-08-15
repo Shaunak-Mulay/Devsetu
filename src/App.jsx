@@ -2704,7 +2704,36 @@ export default function App() {
                           </button>
                         </form>
 
-                        <div style={{ textAlign: "center", marginTop: "20px", fontSize: "11px", color: "var(--text-muted)" }}>
+                        <div style={{ 
+                          textAlign: "center", 
+                          marginTop: "16px", 
+                          fontSize: "11px", 
+                          color: "var(--text-muted)", 
+                          lineHeight: "1.5",
+                          backgroundColor: "rgba(212,175,55,0.06)",
+                          padding: "8px 12px",
+                          borderRadius: "8px",
+                          border: "1px solid rgba(212,175,55,0.2)"
+                        }}>
+                          By signing in or continuing, you agree to our{" "}
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPrivacyModal(true)} 
+                            style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
+                          >
+                            Privacy Policy
+                          </button>{" "}
+                          and{" "}
+                          <button 
+                            type="button" 
+                            onClick={() => setShowTermsModal(true)} 
+                            style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
+                          >
+                            T & C
+                          </button>
+                        </div>
+
+                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: "var(--text-muted)" }}>
                           {localTranslations[language]?.loginSignUpPrompt || localTranslations.en.loginSignUpPrompt}
                           <a href="#" style={{ color: "var(--primary-brown)", fontWeight: "800", textDecoration: "none" }} onClick={(e) => { e.preventDefault(); setIsRegistering(true); }}>
                             {localTranslations[language]?.loginSignUp || localTranslations.en.loginSignUp}
@@ -2869,22 +2898,32 @@ export default function App() {
                             />
                           </div>
 
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", margin: "4px 0 8px", lineHeight: "1.4", textAlign: "center" }}>
+                          <div style={{ 
+                            fontSize: "11px", 
+                            color: "var(--text-muted)", 
+                            margin: "6px 0 10px", 
+                            lineHeight: "1.5", 
+                            textAlign: "center",
+                            backgroundColor: "rgba(212,175,55,0.06)",
+                            padding: "8px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid rgba(212,175,55,0.2)"
+                          }}>
                             By clicking Sign Up, you agree to our{" "}
-                            <button 
-                              type="button" 
-                              onClick={() => setShowTermsModal(true)} 
-                              style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
-                            >
-                              Terms & Conditions
-                            </button>{" "}
-                            and{" "}
                             <button 
                               type="button" 
                               onClick={() => setShowPrivacyModal(true)} 
                               style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
                             >
                               Privacy Policy
+                            </button>{" "}
+                            and{" "}
+                            <button 
+                              type="button" 
+                              onClick={() => setShowTermsModal(true)} 
+                              style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
+                            >
+                              T & C
                             </button>.
                           </div>
 
