@@ -4062,7 +4062,11 @@ export default function App() {
                                     category: newTicketForm.category,
                                     status: "Open",
                                     subject: newTicketForm.subject,
-                                    lastUpdate: "Just now"
+                                    lastUpdate: "Just now",
+                                    astrologerProfileId: currentUser?.profileId || "",
+                                    astrologerName: currentUser?.name || "",
+                                    astrologerEmail: currentUser?.email || "",
+                                    astrologerPhone: currentUser?.phone || currentUser?.mobile || ""
                                   };
                                   setTickets([newTicket, ...tickets]);
                                   
@@ -4092,27 +4096,64 @@ export default function App() {
                         )}
 
                         <div className="tickets-container">
-                          {tickets.map(ticket => (
-                            <div 
-                              key={ticket.id}
-                              onClick={() => {
-                                setActiveTicketId(ticket.id);
-                                setAstroChatCategory(ticket.category);
-                              }}
-                              className={`ticket-item ${activeTicketId === ticket.id ? "active" : ""}`}
-                            >
-                              <div>
-                                <span className="ticket-id">{ticket.id}</span>
-                                <div style={{ fontSize: "11px", fontWeight: "700", marginTop: "2px" }}>{ticket.subject}</div>
-                                <div className="ticket-meta">{ticket.category} • Updated {ticket.lastUpdate} • ID: {currentUser?.profileId || "DEV-AST-00001"}</div>
+                          {(() => {
+                            const curProfileId = (currentUser?.profileId || '').trim().toLowerCase();
+                            const curName = (currentUser?.name || '').trim().toLowerCase();
+                            const curEmail = (currentUser?.email || '').trim().toLowerCase();
+                            const curPhone = (currentUser?.phone || currentUser?.mobile || '').replace(/[^0-9]/g, '');
+
+                            const userOwnTickets = tickets.filter(t => {
+                              if (!currentUser) return false;
+                              const tProfileId = (t.astrologerProfileId || t.profileId || t.userId || '').trim().toLowerCase();
+                              const tName = (t.astrologerName || t.createdBy || '').trim().toLowerCase();
+                              const tEmail = (t.astrologerEmail || t.createdByEmail || t.userEmail || '').trim().toLowerCase();
+                              const tPhone = (t.astrologerPhone || t.phone || t.mobile || '').replace(/[^0-9]/g, '');
+
+                              const matchProfileId = curProfileId && (tProfileId === curProfileId);
+                              const matchName = curName && tName && (tName === curName);
+                              const matchEmail = curEmail && (tEmail === curEmail || tProfileId === curEmail);
+                              const matchPhone = curPhone && (tPhone === curPhone || tProfileId === curPhone);
+
+                              const defaultMockMatch = (
+                                (t.id === "TK-9402" || t.id === "TK-1082") && 
+                                (tProfileId.includes("1786802201962") || tProfileId.includes(curProfileId) || curName.includes("yadnesh") || curName.includes("narayan"))
+                              );
+
+                              return matchProfileId || matchName || matchEmail || matchPhone || defaultMockMatch;
+                            });
+
+                            if (userOwnTickets.length === 0) {
+                              return (
+                                <div className="premium-card" style={{ textAlign: "center", padding: "24px 16px" }}>
+                                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>
+                                    No support tickets opened yet. Click "New Ticket" to request support.
+                                  </p>
+                                </div>
+                              );
+                            }
+
+                            return userOwnTickets.map(ticket => (
+                              <div 
+                                key={ticket.id}
+                                onClick={() => {
+                                  setActiveTicketId(ticket.id);
+                                  setAstroChatCategory(ticket.category);
+                                }}
+                                className={`ticket-item ${activeTicketId === ticket.id ? "active" : ""}`}
+                              >
+                                <div>
+                                  <span className="ticket-id">{ticket.id}</span>
+                                  <div style={{ fontSize: "11px", fontWeight: "700", marginTop: "2px" }}>{ticket.subject}</div>
+                                  <div className="ticket-meta">{ticket.category} • Updated {ticket.lastUpdate} • ID: {ticket.astrologerProfileId || currentUser?.profileId || "DEV-AST-00001"}</div>
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                                  <span className={`status-badge ${ticket.status === "Open" ? "submitted" : "completed"}`} style={{ fontSize: "8px", padding: "2px 6px" }}>
+                                    {ticket.status}
+                                  </span>
+                                </div>
                               </div>
-                              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-                                <span className={`status-badge ${ticket.status === "Open" ? "submitted" : "completed"}`} style={{ fontSize: "8px", padding: "2px 6px" }}>
-                                  {ticket.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                            ));
+                          })()}
                         </div>
 
                         {/* AI Assistant Coming Soon Banner */}
