@@ -1,43 +1,36 @@
 // Reusable service to manage payment configuration and assets.
-// Designed to easily transition from a local placeholder to a dynamic backend API in the future.
 
 class PaymentService {
   constructor() {
+    if (import.meta.env.VITE_API_BASE) {
+      this.apiBase = import.meta.env.VITE_API_BASE.replace(/\/+$/, "");
+      return;
+    }
     const saved = localStorage.getItem("devsetu_api_base");
-    if (saved && !saved.includes("vercel.app")) {
+    if (saved && !saved.includes("onrender.com")) {
       this.apiBase = saved.replace(/\/+$/, "");
+    } else if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      this.apiBase = "http://localhost:5000";
     } else {
-      this.apiBase = "https://devsetu-4wav.onrender.com";
+      this.apiBase = "https://devsetu-eta.vercel.app";
     }
   }
 
   /**
    * Retrieves the configured Payment QR Code image URL.
-   * Future implementation will perform a fetch to: GET /api/payment/qr
-   * 
    * @returns {Promise<string>} The QR Code URL.
    */
   async getPaymentQRCodeUrl() {
-    // Production Note:
-    // This placeholder QR is only for repository safety.
-    // The production QR may later be loaded dynamically
-    // from the backend without changing the UI.
-    
-    // Future API integration structure (Architectural Layout Only):
-    /*
     try {
       const response = await fetch(`${this.apiBase}/api/payment/qr`);
       if (response.ok) {
         const data = await response.json();
-        return data.qrUrl; // Remote QR from Cloud Storage
+        return data.qrUrl || "/qr.png";
       }
     } catch (error) {
-      console.error("Failed to fetch production QR from API:", error);
+      console.warn("Using fallback QR asset:", error.message);
     }
-    */
-    
-    // Local placeholder fallback for repository safety.
-    return "/payment_qr_placeholder.jpeg";
+    return "/qr.png";
   }
 }
 

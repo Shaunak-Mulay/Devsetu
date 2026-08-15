@@ -1,7 +1,7 @@
 import { dbService } from '../services/dbService.js';
 import { notificationService } from '../notifications/notificationService.js';
 import { logAuditEvent } from '../services/auditService.js';
-import { hashPassword } from '../utils/crypto.js';
+import { hashPassword, generateSecureOtp } from '../utils/crypto.js';
 import { sanitizeUser } from '../utils/serializers.js';
 
 export async function getPinResets(req, res) {
@@ -9,7 +9,7 @@ export async function getPinResets(req, res) {
     const pin_reset_requests = await dbService.getCollection('pin_reset_requests') || [];
     res.json(pin_reset_requests);
   } catch (err) {
-    console.error(err);
+    console.error('[PinResetController] getPinResets error:', err);
     res.status(500).json({ error: "Failed to fetch PIN reset requests." });
   }
 }
@@ -44,7 +44,7 @@ export async function updatePinResetStatus(req, res) {
 
     res.json(updatedRequest);
   } catch (err) {
-    console.error(err);
+    console.error('[PinResetController] updatePinResetStatus error:', err);
     res.status(500).json({ error: "Failed to update PIN reset request status." });
   }
 }
@@ -70,7 +70,8 @@ export async function resetPin(req, res) {
 
     const user = users[userIndex];
 
-    const tempPin = String(Math.floor(100000 + Math.random() * 900000));
+    // Generate cryptographically secure 6-digit PIN
+    const tempPin = generateSecureOtp();
     const { salt, hash } = hashPassword(tempPin);
 
     user.password = hash;
@@ -96,7 +97,7 @@ export async function resetPin(req, res) {
 
     res.json({ success: true, tempPin, request: sanitizeUser(request), message: "PIN reset successfully. Temporary PIN generated." });
   } catch (err) {
-    console.error(err);
+    console.error('[PinResetController] resetPin error:', err);
     res.status(500).json({ error: "Failed to reset PIN." });
   }
 }
@@ -106,7 +107,7 @@ export async function getAuditLogs(req, res) {
     const audit_logs = await dbService.getCollection('audit_logs') || [];
     res.json(audit_logs);
   } catch (err) {
-    console.error(err);
+    console.error('[PinResetController] getAuditLogs error:', err);
     res.status(500).json({ error: "Failed to fetch audit logs." });
   }
 }

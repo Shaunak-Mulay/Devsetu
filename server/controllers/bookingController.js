@@ -2,13 +2,14 @@ import { dbService } from '../services/dbService.js';
 import { notificationService } from '../notifications/notificationService.js';
 import { logAuditEvent } from '../services/auditService.js';
 import { sheetsService } from '../services/sheetsService.js';
+import { StorageService } from '../services/storageService.js';
 
 export async function getBookings(req, res) {
   try {
     const bookings = await dbService.getCollection('bookings') || [];
     res.json(bookings);
   } catch (err) {
-    console.error(err);
+    console.error('[BookingController] getBookings error:', err);
     res.status(500).json({ error: "Failed to retrieve bookings." });
   }
 }
@@ -29,6 +30,7 @@ export async function createBooking(req, res) {
     city, 
     date, 
     paymentTxnId, 
+    screenshot,
     notes 
   } = req.body;
 
@@ -56,44 +58,50 @@ export async function createBooking(req, res) {
     const nextNum = String(maxNum + 1).padStart(6, '0');
     const bookingId = id || `${prefix}${nextNum}`;
 
-    const initialStatus = paymentTxnId ? "submitted" : "created";
+    // Upload payment screenshot to Supabase Storage if present
+    let screenshotUrl = screenshot || null;
+    if (screenshot && screenshot.startsWith('data:image')) {
+      screenshotUrl = await StorageService.uploadBase64(screenshot, 'booking-receipts', `receipt_${bookingId}`);
+    }
+
+    const initialStatus = (paymentTxnId || screenshotUrl) ? "submitted" : "created";
 
     const newBooking = {
       id: bookingId,
-      astrologerName,
+      astrologerName: astrologerName || "Astrologer",
       astrologerProfileId: astrologerProfileId || "DEV-AST-000001",
-      serviceId,
-      packageName,
-      amount,
-      astroFee,
+      serviceId: serviceId || "pooja",
+      packageName: packageName || "Standard Pooja",
+      amount: Number(amount) || 0,
+      astroFee: Number(astroFee) || 0,
       clientName,
       yajmaanDob: yajmaanDob || "",
       clientMobile,
       poojaPlace: poojaPlace || city || "",
-      city,
+      city: city || "",
       date,
       status: initialStatus,
       paymentReference: paymentTxnId || "",
       paymentMethod: paymentTxnId ? "UPI" : "",
-      submittedAt: paymentTxnId ? new Date().toISOString() : null,
-      notes,
+      screenshot: screenshotUrl,
+      screenshotUrl: screenshotUrl,
+      submittedAt: (paymentTxnId || screenshotUrl) ? new Date().toISOString() : null,
+      notes: notes || "",
       createdAt: new Date().toISOString()
     };
 
     bookings.unshift(newBooking);
     await dbService.saveCollection('bookings', bookings);
 
-    // Retrieve users to find the email and phone of the astrologer
+    // Retrieve astrologer profile for notifications
     const users = await dbService.getCollection('users') || [];
-    const astroUser = users.find(u => u.name === astrologerName || u.profileId === astrologerProfileId) || {
-      email: 'shaunakmulay19@gmail.com',
-      phone: '8698378379'
-    };
+    const astroUser = users.find(u => u.profileId === astrologerProfileId || u.name === astrologerName);
+    const recipientContact = astroUser ? (astroUser.email || astroUser.phone) : (astrologerProfileId || "astrologer");
 
-    await logAuditEvent(astroUser.email || astroUser.phone, `Pooja Booking Created: ${bookingId}`);
+    await logAuditEvent(recipientContact, `Pooja Booking Created: ${bookingId}`);
 
     await notificationService.sendNotification({
-      userId: astroUser.email || astroUser.phone,
+      userId: recipientContact,
       event: "Booking Submitted",
       title: "Booking Created Successfully",
       body: `Your booking has been created successfully. Booking ID: ${bookingId}. Complete payment to verify.`,
@@ -106,7 +114,7 @@ export async function createBooking(req, res) {
 
     res.status(201).json(newBooking);
   } catch (err) {
-    console.error(err);
+    console.error('[BookingController] createBooking error:', err);
     res.status(500).json({ error: "Failed to create booking." });
   }
 }
@@ -115,46 +123,54 @@ export async function submitPayment(req, res) {
   const { id } = req.params;
   const { txnId, screenshot } = req.body;
 
-  if (!txnId) {
-    return res.status(400).json({ error: "Transaction ID reference is required." });
+  if (!txnId && !screenshot) {
+    return res.status(400).json({ error: "Transaction ID reference or screenshot is required." });
   }
 
   try {
     const bookings = await dbService.getCollection('bookings') || [];
-    let updatedBooking = null;
+    const bookingIndex = bookings.findIndex(b => b.id === id);
 
-    const nextBookings = bookings.map(b => {
-      if (b.id === id) {
-        updatedBooking = {
-          ...b,
-          status: "submitted",
-          txnId,
-          screenshot: screenshot
-        };
-        return updatedBooking;
-      }
-      return b;
-    });
-
-    if (!updatedBooking) {
+    if (bookingIndex === -1) {
       return res.status(404).json({ error: "Booking not found." });
     }
 
-    await dbService.saveCollection('bookings', nextBookings);
+    const booking = bookings[bookingIndex];
+
+    // Upload receipt to Supabase Storage if base64
+    let screenshotUrl = booking.screenshot;
+    if (screenshot && screenshot.startsWith('data:image')) {
+      screenshotUrl = await StorageService.uploadBase64(screenshot, 'booking-receipts', `receipt_${id}`);
+    } else if (screenshot) {
+      screenshotUrl = screenshot;
+    }
+
+    const updatedBooking = {
+      ...booking,
+      status: "submitted",
+      txnId: txnId || booking.txnId,
+      paymentReference: txnId || booking.paymentReference,
+      screenshot: screenshotUrl,
+      screenshotUrl: screenshotUrl,
+      submittedAt: new Date().toISOString()
+    };
+
+    bookings[bookingIndex] = updatedBooking;
+    await dbService.saveCollection('bookings', bookings);
     
     // Retrieve user details to log correctly
     const users = await dbService.getCollection('users') || [];
-    const astroUser = users.find(u => u.name === updatedBooking.astrologerName || u.profileId === updatedBooking.astrologerProfileId);
-    const userIdForAudit = astroUser ? (astroUser.email || astroUser.phone) : (updatedBooking.astrologerName || "astrologer");
+    const astroUser = users.find(u => u.profileId === updatedBooking.astrologerProfileId || u.name === updatedBooking.astrologerName);
+    const userIdForAudit = astroUser ? (astroUser.email || astroUser.phone) : (updatedBooking.astrologerProfileId || "astrologer");
     
-    await logAuditEvent(userIdForAudit, `Payment Submitted for Booking ${id} - UTR: ${txnId}`);
+    await logAuditEvent(userIdForAudit, `Payment Submitted for Booking ${id} - UTR: ${txnId || 'Screenshot'}`);
 
     // Notify Admin of Payment Verification Pending
     await notificationService.sendNotification({
-      userId: "devsetuconnect@gmail.com",
+      userId: "admin",
       event: "Booking Submitted",
       title: "Payment Verification Pending",
-      body: `Payment submitted for Booking ID: ${id}. UTR/TxnID: ${txnId}. Verification is required.`,
+      body: `Payment submitted for Booking ID: ${id}. UTR/TxnID: ${txnId || 'Image Attached'}. Verification is required.`,
       relatedBookingId: id,
       relatedProfileId: updatedBooking.astrologerProfileId
     });
@@ -164,7 +180,7 @@ export async function submitPayment(req, res) {
 
     res.json(updatedBooking);
   } catch (err) {
-    console.error(err);
+    console.error('[BookingController] submitPayment error:', err);
     res.status(500).json({ error: "Failed to submit payment details." });
   }
 }
@@ -196,16 +212,13 @@ export async function updateBookingStatus(req, res) {
 
     // Retrieve users to find the email and phone of the astrologer
     const users = await dbService.getCollection('users') || [];
-    const astroUser = (updatedBooking.astrologerName ? users.find(u => u.name === updatedBooking.astrologerName) : null) || 
-                      users.find(u => u.profileId === updatedBooking.astrologerProfileId) || {
-      email: 'shaunakmulay19@gmail.com',
-      phone: '8698378379'
-    };
+    const astroUser = users.find(u => u.profileId === updatedBooking.astrologerProfileId || u.name === updatedBooking.astrologerName);
+    const recipientContact = astroUser ? (astroUser.email || astroUser.phone) : (updatedBooking.astrologerProfileId || "astrologer");
 
     await logAuditEvent("admin", `Booking ${id} Status Updated to ${status}`);
 
     // Create and add status notifications
-    const targetStatus = status.toLowerCase();
+    const targetStatus = (status || "").toLowerCase();
     if (["approved", "cancelled", "rejected", "payment_verified", "submitted", "created", "completed"].includes(targetStatus)) {
       const eventName = targetStatus === "approved" ? "Booking Approved" : (targetStatus === "payment_verified" ? "Booking Submitted" : (targetStatus === "completed" ? "Booking Completed" : "Booking Rejected"));
       const notifTitle = targetStatus === "approved" ? "Booking Confirmed" : (targetStatus === "payment_verified" ? "Payment Verified" : (targetStatus === "completed" ? "Booking Completed" : (targetStatus === "cancelled" ? "Booking Cancelled" : "Booking Rejected")));
@@ -220,7 +233,7 @@ export async function updateBookingStatus(req, res) {
               : `Your booking request for ${updatedBooking.packageName} could not be approved. Reason: Payment could not be verified.`)));
 
       await notificationService.sendNotification({
-        userId: astroUser.email || astroUser.phone,
+        userId: recipientContact,
         event: eventName,
         title: notifTitle,
         body: notifBody,
@@ -234,7 +247,7 @@ export async function updateBookingStatus(req, res) {
 
     res.json(updatedBooking);
   } catch (err) {
-    console.error(err);
+    console.error('[BookingController] updateBookingStatus error:', err);
     res.status(500).json({ error: "Failed to update booking status." });
   }
 }
@@ -247,13 +260,19 @@ export async function deleteBooking(req, res) {
     if (!bookingToDelete) {
       return res.status(404).json({ error: "Booking not found." });
     }
+
+    // Delete screenshot from storage bucket if present
+    if (bookingToDelete.screenshot && bookingToDelete.screenshot.includes('/storage/v1/object/public/')) {
+      await StorageService.deleteFile(bookingToDelete.screenshot, 'booking-receipts');
+    }
+
     const filteredBookings = bookings.filter(b => b.id !== id);
     await dbService.saveCollection('bookings', filteredBookings);
 
     await logAuditEvent("admin", `Booking ${id} Deleted by Admin`);
     res.json({ success: true, message: "Booking deleted successfully." });
   } catch (err) {
-    console.error(err);
+    console.error('[BookingController] deleteBooking error:', err);
     res.status(500).json({ error: "Failed to delete booking." });
   }
 }

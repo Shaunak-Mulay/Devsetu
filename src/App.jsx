@@ -38,11 +38,20 @@ import {
 import { servicesData, translations, sampleScreenshots, mockAstrologers, SUPPORT_CONFIG } from "./data";
 import { paymentService } from "./services/PaymentService";
 const getApiBase = () => {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1" || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
+      return `http://${host}:5000`;
+    }
+  }
+  if (import.meta.env.VITE_API_BASE) {
+    return import.meta.env.VITE_API_BASE.replace(/\/+$/, "");
+  }
   const saved = localStorage.getItem("devsetu_api_base");
-  if (saved && !saved.includes("vercel.app")) {
+  if (saved && !saved.includes("onrender.com")) {
     return saved.replace(/\/+$/, "");
   }
-  return "https://devsetu-4wav.onrender.com";
+  return "https://devsetu-eta.vercel.app";
 };
 const API_BASE = getApiBase();
 
@@ -716,7 +725,6 @@ export default function App() {
               setCurrentUser(null);
               localStorage.removeItem("devsetu_user");
               setIsLoggedIn(false);
-              alert("Your session has expired due to a password change. Please login again.");
             }
           }
         } catch (e) {
@@ -733,7 +741,6 @@ export default function App() {
               setAdminUser(null);
               localStorage.removeItem("devsetu_admin_user");
               setIsAdminLoggedIn(false);
-              alert("Admin session has expired due to a password change. Please login again.");
             }
           }
         } catch (e) {
@@ -2194,6 +2201,7 @@ export default function App() {
                                 type="text" 
                                 required 
                                 maxLength={6}
+                                autoComplete="one-time-code"
                                 placeholder="6-Digit Code" 
                                 className="minimal-input"
                                 value={forgotOtp}
@@ -2316,9 +2324,9 @@ export default function App() {
                     ) : registeredProfileId ? (
                       <div className="fade-in text-center" style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "12px 0", alignItems: "center" }}>
                         <div style={{ fontSize: "40px", color: "var(--success)" }}>✓</div>
-                        <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "18px", color: "var(--text-main)", margin: 0 }}>Registration Received!</h3>
+                        <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "18px", color: "var(--text-main)", margin: 0 }}>Account Approved & Active!</h3>
                         <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
-                          Thank you for registering with DEVSETU CONNECT. Your astrologer account has been received and is currently pending verification.
+                          Thank you for registering with DEVSETU CONNECT. Your astrologer profile has been automatically approved and is ready for immediate use.
                         </p>
                         
                         <div style={{
@@ -2333,13 +2341,13 @@ export default function App() {
                           <div style={{ fontSize: "20px", fontWeight: "900", color: "var(--primary-brown)", fontFamily: "monospace", margin: "6px 0" }}>
                             {registeredProfileId}
                           </div>
-                          <span style={{ fontSize: "9px", padding: "2px 8px", backgroundColor: "var(--warning)", color: "var(--primary-brown)", borderRadius: "10px", fontWeight: "800", display: "inline-block" }}>
-                            PENDING VERIFICATION
+                          <span style={{ fontSize: "9px", padding: "2px 8px", backgroundColor: "#2e7d32", color: "#ffffff", borderRadius: "10px", fontWeight: "800", display: "inline-block" }}>
+                            ACTIVE & READY TO LOGIN
                           </span>
                         </div>
 
                         <p style={{ fontSize: "10px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
-                          An Email and SMS confirmation has been sent to your registered contact. Please wait for the admin to verify and approve your account.
+                          Click the button below to log in immediately using your 6-digit PIN.
                         </p>
 
                         <button 
@@ -2351,7 +2359,7 @@ export default function App() {
                           className="btn-primary"
                           style={{ width: "100%", padding: "10px" }}
                         >
-                          Proceed to Login
+                          Proceed to Login →
                         </button>
                       </div>
                     ) : !isRegistering ? (
@@ -2475,6 +2483,7 @@ export default function App() {
                             <input 
                               type="tel" 
                               required
+                              autoComplete="tel"
                               inputMode="numeric"
                               pattern="[0-9]*"
                               placeholder="Mobile Number" 
@@ -2489,6 +2498,7 @@ export default function App() {
                             <input 
                               type={loginShowPassword ? "text" : "password"} 
                               required
+                              autoComplete="current-password"
                               inputMode="numeric"
                               pattern="[0-9]*"
                               maxLength={6}
@@ -2664,6 +2674,7 @@ export default function App() {
                             <input 
                               type="password" 
                               required
+                              autoComplete="new-password"
                               inputMode="numeric"
                               pattern="[0-9]*"
                               maxLength={6}
@@ -2679,6 +2690,7 @@ export default function App() {
                             <input 
                               type="password" 
                               required
+                              autoComplete="new-password"
                               inputMode="numeric"
                               pattern="[0-9]*"
                               maxLength={6}
@@ -4937,9 +4949,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                     setIsAdminLoggedIn(true);
                   } catch (err) {
                     console.error("Admin authentication error:", err);
-                    localStorage.removeItem("devsetu_api_base");
-                    alert("Network connection error. Resetting API base URL to production server (https://devsetu-4wav.onrender.com). Reloading...");
-                    window.location.reload();
+                    alert(err.message || "Failed to connect to backend server. Please check that the server is running.");
                   }
                 }} className="admin-login-form">
                   <div>
@@ -4974,6 +4984,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       <input 
                         type="email" 
                         required
+                        autoComplete="email"
                         placeholder="Admin Email Address" 
                         className="minimal-input"
                         value={adminUsername}
@@ -4986,6 +4997,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       <input 
                         type="tel" 
                         required
+                        autoComplete="tel"
                         placeholder="Admin Mobile Number" 
                         className="minimal-input"
                         value={adminUsername}
@@ -4999,6 +5011,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                     <input 
                       type={adminShowPassword ? "text" : "password"} 
                       required
+                      autoComplete="current-password"
                       placeholder="Admin Password" 
                       className="minimal-input"
                       value={adminPassword}
@@ -7962,6 +7975,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                         <input 
                           type="password" 
                           required 
+                          autoComplete="current-password"
                           className="form-input" 
                           value={adminCurrentPassword}
                           onChange={(e) => setAdminCurrentPassword(e.target.value)}
@@ -7973,6 +7987,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                         <input 
                           type="password" 
                           required 
+                          autoComplete="new-password"
                           className="form-input" 
                           value={adminNewPassword}
                           onChange={(e) => setAdminNewPassword(e.target.value)}
@@ -7984,6 +7999,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                         <input 
                           type="password" 
                           required 
+                          autoComplete="new-password"
                           className="form-input" 
                           value={adminConfirmPassword}
                           onChange={(e) => setAdminConfirmPassword(e.target.value)}
