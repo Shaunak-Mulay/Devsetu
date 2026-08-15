@@ -39,8 +39,10 @@ import { servicesData, translations, sampleScreenshots, mockAstrologers, SUPPORT
 import { paymentService } from "./services/PaymentService";
 const getApiBase = () => {
   const saved = localStorage.getItem("devsetu_api_base");
-  const base = saved || "https://devsetu-eta.vercel.app";
-  return base.replace(/\/+$/, "");
+  if (saved && !saved.includes("vercel.app")) {
+    return saved.replace(/\/+$/, "");
+  }
+  return "https://devsetu-4wav.onrender.com";
 };
 const API_BASE = getApiBase();
 
@@ -4934,7 +4936,10 @@ Please confirm manually and send my Login PIN. Thank you.`}
                     localStorage.setItem("devsetu_admin_user", JSON.stringify(data.user));
                     setIsAdminLoggedIn(true);
                   } catch (err) {
-                    alert("Network error during admin authentication.");
+                    console.error("Admin authentication error:", err);
+                    localStorage.removeItem("devsetu_api_base");
+                    alert("Network connection error. Resetting API base URL to production server (https://devsetu-4wav.onrender.com). Reloading...");
+                    window.location.reload();
                   }
                 }} className="admin-login-form">
                   <div>

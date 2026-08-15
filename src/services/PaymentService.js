@@ -4,8 +4,11 @@
 class PaymentService {
   constructor() {
     const saved = localStorage.getItem("devsetu_api_base");
-    const base = saved || "https://devsetu-eta.vercel.app";
-    this.apiBase = base.replace(/\/+$/, "");
+    if (saved && !saved.includes("vercel.app")) {
+      this.apiBase = saved.replace(/\/+$/, "");
+    } else {
+      this.apiBase = "https://devsetu-4wav.onrender.com";
+    }
   }
 
   /**
