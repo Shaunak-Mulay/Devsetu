@@ -276,6 +276,10 @@ function toSnakeCase(obj, collectionKey) {
 // Initialize database schemas / seedings
 const initDb = async () => {
   if (isSupabaseConfigured()) {
+    // Skip heavy background sync loops on Vercel serverless cold starts
+    if (process.env.VERCEL || process.env.VERCEL === '1') {
+      return;
+    }
     console.log('[Database] Supabase is active. Synchronizing auth.users with public.profiles...');
     try {
       const { data: authData } = await supabaseAdmin.auth.admin.listUsers();

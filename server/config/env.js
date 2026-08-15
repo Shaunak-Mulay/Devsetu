@@ -8,9 +8,9 @@ const __dirname = path.dirname(__filename);
 // Load env from server/.env
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://anssfvwefpeatohppdlh.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_xXMYtlIhCkxGtTvNH-fybQ_Tt22tJOv';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuc3NmdndlZnBlYXRvaHBwZGxoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Njc4OTg4MSwiZXhwIjoyMTAyMzY1ODgxfQ.SZFhnEnS73GvDsQiZqtiCKfm7tWFQTvBCyDLaWtVip0';
 
 export const config = {
   port: process.env.PORT || 5000,
