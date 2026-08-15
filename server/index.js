@@ -53,9 +53,12 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// Server Listen
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Backend server successfully running on http://0.0.0.0:${PORT}`);
-  console.log(`Accessible locally at http://localhost:${PORT}`);
-});
+// Server Listen (only in standalone Node server environment)
+if (!process.env.VERCEL && process.env.VERCEL !== '1') {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend server successfully running on http://0.0.0.0:${PORT}`);
+    console.log(`Accessible locally at http://localhost:${PORT}`);
+  });
+}
+
 export default app;

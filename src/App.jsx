@@ -55,6 +55,15 @@ const getApiBase = () => {
 };
 const API_BASE = getApiBase();
 
+const safeParseJson = async (res) => {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return { error: `Server response error (${res.status}). Please verify server availability.` };
+  }
+};
+
 
 const localTranslations = {
   en: {
@@ -985,7 +994,7 @@ export default function App() {
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
+      const data = await safeParseJson(res);
       if (!res.ok) {
         if (res.status === 403 && data.profileId) {
           setLoginError({ type: "pending", profileId: data.profileId, message: data.error });
@@ -4935,7 +4944,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify(payload)
                     });
-                    const data = await res.json();
+                    const data = await safeParseJson(res);
                     if (!res.ok) {
                       alert(data.error || "Admin authentication failed.");
                       return;
