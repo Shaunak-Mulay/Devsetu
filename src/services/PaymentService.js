@@ -25,12 +25,12 @@ class PaymentService {
       const response = await fetch(`${this.apiBase}/api/payment/qr`);
       if (response.ok) {
         const data = await response.json();
-        return data.qrUrl || "/qr.png";
+        return data.qrUrl || "/payment_qr_placeholder.jpeg";
       }
     } catch (error) {
       console.warn("Using fallback QR asset:", error.message);
     }
-    return "/qr.png";
+    return "/payment_qr_placeholder.jpeg";
   }
 }
 
