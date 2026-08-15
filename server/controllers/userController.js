@@ -153,3 +153,32 @@ export async function deleteUser(req, res) {
     res.status(500).json({ error: "Failed to delete user." });
   }
 }
+
+export async function approveAllPendingUsers(req, res) {
+  try {
+    const users = await dbService.getCollection('users') || [];
+    let count = 0;
+    const updatedUsers = users.map(u => {
+      if (u.role === 'astrologer' && u.accountStatus !== 'approved') {
+        count++;
+        return {
+          ...u,
+          accountStatus: 'approved',
+          status: 'Approved',
+          approved: true
+        };
+      }
+      return u;
+    });
+
+    if (count > 0) {
+      await dbService.saveCollection('users', updatedUsers);
+      await logAuditEvent('Admin', `Bulk approved ${count} pending astrologers`);
+    }
+
+    res.json({ success: true, count, message: `Successfully approved ${count} pending astrologers.` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to approve all users." });
+  }
+}

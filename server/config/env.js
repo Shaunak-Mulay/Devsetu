@@ -8,8 +8,20 @@ const __dirname = path.dirname(__filename);
 // Load env from server/.env
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
+
 export const config = {
   port: process.env.PORT || 5000,
+  jwtSecret: process.env.JWT_SECRET || 'devsetu-super-secret-jwt-key-2026-production',
+  supabase: {
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+    serviceRoleKey: supabaseServiceKey,
+    isConfigured: !!(supabaseUrl && (supabaseServiceKey || supabaseAnonKey))
+  },
+  databaseUrl: process.env.DATABASE_URL || '',
   smtp: {
     host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
     port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587,
@@ -30,8 +42,8 @@ export const config = {
     serverKey: process.env.FCM_SERVER_KEY
   },
   firebase: {
-    apiKey: process.env.FIREBASE_API_KEY || "AIzaSyApiX1JSyhDA-6l7SQJNuqj_abr1scJ-y0",
-    databaseURL: process.env.FIREBASE_DATABASE_URL || "https://devsetu-c9cae-default-rtdb.firebaseio.com"
+    apiKey: process.env.FIREBASE_API_KEY || "",
+    databaseURL: process.env.FIREBASE_DATABASE_URL || ""
   },
   support: {
     phone: process.env.SUPPORT_PHONE || '+91 97631 47067',

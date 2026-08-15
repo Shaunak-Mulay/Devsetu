@@ -1,9 +1,8 @@
-import { dbService } from '../services/dbService.js';
+import { inMemoryOutbox } from '../notifications/emailProvider.js';
 
 export async function getOutbox(req, res) {
   try {
-    const outbox = await dbService.getCollection('mock_outbox') || [];
-    res.json(outbox);
+    res.json(inMemoryOutbox);
   } catch (err) {
     console.error("Failed to read mock outbox:", err);
     res.status(500).json({ error: "Failed to read mock outbox." });
@@ -12,7 +11,7 @@ export async function getOutbox(req, res) {
 
 export async function clearOutbox(req, res) {
   try {
-    await dbService.saveCollection('mock_outbox', []);
+    inMemoryOutbox.length = 0;
     res.json({ success: true });
   } catch (err) {
     console.error("Failed to clear mock outbox:", err);

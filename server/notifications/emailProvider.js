@@ -2,24 +2,23 @@ import nodemailer from 'nodemailer';
 import { config } from '../config/env.js';
 import { dbService } from '../services/dbService.js';
 
+export const inMemoryOutbox = [];
+
 async function saveToMockOutbox(type, recipient, subject, message) {
   try {
-    const outbox = (await dbService.getCollection('mock_outbox')) || [];
     const newMsg = {
       id: "MSG-" + Math.floor(100000 + Math.random() * 900000),
-      type, // 'sms' or 'email'
+      type, // 'sms', 'email', or 'push'
       recipient,
       subject,
       message,
       timestamp: new Date().toISOString(),
       read: false
     };
-    outbox.unshift(newMsg);
-    if (outbox.length > 50) {
-      outbox.pop();
+    inMemoryOutbox.unshift(newMsg);
+    if (inMemoryOutbox.length > 50) {
+      inMemoryOutbox.pop();
     }
-    await dbService.saveCollection('mock_outbox', outbox);
-    console.log(`[OUTBOX STORED] Mock ${type} to ${recipient}`);
   } catch (err) {
     console.error("Failed to save mock message to outbox:", err);
   }

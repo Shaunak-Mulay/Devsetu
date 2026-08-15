@@ -209,6 +209,54 @@
   ],
   "notifications": [
     {
+      "id": "NT-43927",
+      "notificationId": "NT-60028",
+      "userId": "shaunakmulay19@gmail.com",
+      "userEmail": "shaunakmulay19@gmail.com",
+      "type": "booking",
+      "title": "Booking Created Successfully",
+      "message": "Your booking has been created successfully. Booking ID: DEV-BKG-000003. Complete payment to verify.",
+      "body": "Your booking has been created successfully. Booking ID: DEV-BKG-000003. Complete payment to verify.",
+      "channel": "in-app",
+      "status": "Sent",
+      "read": false,
+      "createdAt": "2026-08-15T12:46:43.603Z",
+      "relatedBookingId": "DEV-BKG-000003",
+      "relatedProfileId": "DEV-AST-000001"
+    },
+    {
+      "id": "NT-10371",
+      "notificationId": "NT-21110",
+      "userId": "shaunakmulay19@gmail.com",
+      "userEmail": "shaunakmulay19@gmail.com",
+      "type": "booking",
+      "title": "Booking Created Successfully",
+      "message": "Your booking has been created successfully. Booking ID: DEV-BKG-000002. Complete payment to verify.",
+      "body": "Your booking has been created successfully. Booking ID: DEV-BKG-000002. Complete payment to verify.",
+      "channel": "in-app",
+      "status": "Sent",
+      "read": false,
+      "createdAt": "2026-08-15T12:46:43.572Z",
+      "relatedBookingId": "DEV-BKG-000002",
+      "relatedProfileId": "DEV-AST-000001"
+    },
+    {
+      "id": "NT-74043",
+      "notificationId": "NT-88310",
+      "userId": "shaunakmulay19@gmail.com",
+      "userEmail": "shaunakmulay19@gmail.com",
+      "type": "booking",
+      "title": "Booking Created Successfully",
+      "message": "Your booking has been created successfully. Booking ID: DEV-BKG-000001. Complete payment to verify.",
+      "body": "Your booking has been created successfully. Booking ID: DEV-BKG-000001. Complete payment to verify.",
+      "channel": "in-app",
+      "status": "Sent",
+      "read": false,
+      "createdAt": "2026-08-15T12:46:41.231Z",
+      "relatedBookingId": "DEV-BKG-000001",
+      "relatedProfileId": "DEV-AST-000001"
+    },
+    {
       "id": "NT-87961",
       "userEmail": "verifyastro@gmail.com",
       "title": "Booking Approved",
@@ -226,5 +274,177 @@
       "read": false,
       "createdAt": "2026-06-19T22:00:00Z"
     }
-  ]
+  ],
+  "audit_logs": [
+    {
+      "id": "AUD-897283",
+      "userId": "shaunakmulay19@gmail.com",
+      "event": "Pooja Booking Created: DEV-BKG-000003",
+      "date": "2026-08-15",
+      "time": "18:16:43",
+      "timestamp": "2026-08-15T12:46:43.594Z"
+    },
+    {
+      "id": "AUD-151699",
+      "userId": "shaunakmulay19@gmail.com",
+      "event": "Pooja Booking Created: DEV-BKG-000002",
+      "date": "2026-08-15",
+      "time": "18:16:43",
+      "timestamp": "2026-08-15T12:46:43.564Z"
+    },
+    {
+      "id": "AUD-980560",
+      "userId": "otpresetrunner@gmail.com",
+      "event": "Login Success",
+      "date": "2026-08-15",
+      "time": "18:16:43",
+      "timestamp": "2026-08-15T12:46:43.545Z"
+    },
+    {
+      "id": "AUD-370655",
+      "userId": "otpresetrunner@gmail.com",
+      "event": "Password Reset Success",
+      "date": "2026-08-15",
+      "time": "18:16:43",
+      "timestamp": "2026-08-15T12:46:43.334Z"
+    },
+    {
+      "id": "AUD-710025",
+      "userId": "otpresetrunner@gmail.com",
+      "event": "Password Reset Request",
+      "date": "2026-08-15",
+      "time": "18:16:43",
+      "timestamp": "2026-08-15T12:46:43.066Z"
+    },
+    {
+      "id": "AUD-949961",
+      "userId": "otpresetrunner@gmail.com",
+      "event": "Registration Submitted",
+      "date": "2026-08-15",
+      "time": "18:16:43",
+      "timestamp": "2026-08-15T12:46:43.033Z"
+    },
+    {
+      "id": "AUD-808785",
+      "userId": "otptestrunner@gmail.com",
+      "event": "Login Success",
+      "date": "2026-08-15",
+      "time": "18:16:42",
+      "timestamp": "2026-08-15T12:46:42.881Z"
+    },
+    {
+      "id": "AUD-597401",
+      "userId": "otptestrunner@gmail.com",
+      "event": "Login OTP Verification Success",
+      "date": "2026-08-15",
+      "time": "18:16:42",
+      "timestamp": "2026-08-15T12:46:42.704Z"
+    },
+    {
+      "id": "AUD-674933",
+      "userId": "otptestrunner@gmail.com",
+      "event": "Login OTP Request",
+      "date": "2026-08-15",
+      "time": "18:16:42",
+      "timestamp": "2026-08-15T12:46:42.664Z"
+    },
+    {
+      "id": "AUD-951588",
+      "userId": "otptestrunner@gmail.com",
+      "event": "Registration Submitted",
+      "date": "2026-08-15",
+      "time": "18:16:42",
+      "timestamp": "2026-08-15T12:46:42.505Z"
+    },
+    {
+      "id": "AUD-125305",
+      "userId": "srstestrunner@gmail.com",
+      "event": "Login Success",
+      "date": "2026-08-15",
+      "time": "18:16:42",
+      "timestamp": "2026-08-15T12:46:42.356Z"
+    },
+    {
+      "id": "AUD-887196",
+      "userId": "srstestrunner@gmail.com",
+      "event": "PIN Reset Completed by Admin",
+      "date": "2026-08-15",
+      "time": "18:16:42",
+      "timestamp": "2026-08-15T12:46:42.156Z"
+    },
+    {
+      "id": "AUD-633204",
+      "userId": "admin",
+      "event": "PIN Reset Request PRR-625765 status updated to in_review",
+      "date": "2026-08-15",
+      "time": "18:16:41",
+      "timestamp": "2026-08-15T12:46:41.953Z"
+    },
+    {
+      "id": "AUD-475217",
+      "userId": "srstestrunner@gmail.com",
+      "event": "PIN Reset Request Submitted",
+      "date": "2026-08-15",
+      "time": "18:16:41",
+      "timestamp": "2026-08-15T12:46:41.930Z"
+    },
+    {
+      "id": "AUD-296212",
+      "userId": "srstestrunner@gmail.com",
+      "event": "Password Change",
+      "date": "2026-08-15",
+      "time": "18:16:41",
+      "timestamp": "2026-08-15T12:46:41.889Z"
+    },
+    {
+      "id": "AUD-720419",
+      "userId": "admin",
+      "event": "Booking DEV-BKG-000001 Status Updated to approved",
+      "date": "2026-08-15",
+      "time": "18:16:41",
+      "timestamp": "2026-08-15T12:46:41.411Z"
+    },
+    {
+      "id": "AUD-250032",
+      "userId": "srstestrunner@gmail.com",
+      "event": "Payment Submitted for Booking DEV-BKG-000001 - UTR: TXN_SRS_TEST_100",
+      "date": "2026-08-15",
+      "time": "18:16:41",
+      "timestamp": "2026-08-15T12:46:41.265Z"
+    },
+    {
+      "id": "AUD-983591",
+      "userId": "shaunakmulay19@gmail.com",
+      "event": "Pooja Booking Created: DEV-BKG-000001",
+      "date": "2026-08-15",
+      "time": "18:16:41",
+      "timestamp": "2026-08-15T12:46:41.221Z"
+    },
+    {
+      "id": "AUD-879846",
+      "userId": "srstestrunner@gmail.com",
+      "event": "Login Success",
+      "date": "2026-08-15",
+      "time": "18:16:41",
+      "timestamp": "2026-08-15T12:46:41.010Z"
+    },
+    {
+      "id": "AUD-267090",
+      "userId": "srstestrunner@gmail.com",
+      "event": "Account Status Updated to approved by Admin",
+      "date": "2026-08-15",
+      "time": "18:16:40",
+      "timestamp": "2026-08-15T12:46:40.818Z"
+    },
+    {
+      "id": "AUD-162263",
+      "userId": "srstestrunner@gmail.com",
+      "event": "Registration Submitted",
+      "date": "2026-08-15",
+      "time": "18:16:40",
+      "timestamp": "2026-08-15T12:46:40.584Z"
+    }
+  ],
+  "pin_reset_requests": [],
+  "otps": []
 }

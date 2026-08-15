@@ -4,12 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue.bold,cyan.bold\" \"npm run server\" \"npm run dev:client\"",
+    "start": "concurrently -n \"SERVER,CLIENT\" -c \"blue.bold,cyan.bold\" \"npm run server\" \"npm run dev:client\"",
+    "dev:client": "vite --host 0.0.0.0",
     "server": "node server/index.js",
-    "dev:all": "concurrently \"npm run server\" \"npm run dev\"",
+    "dev:all": "concurrently -n \"SERVER,CLIENT\" -c \"blue.bold,cyan.bold\" \"npm run server\" \"npm run dev:client\"",
     "test:db": "node server/test-db.js",
     "test:api": "node server/test-api.js",
     "clean:db": "node server/clean-db.js",
+    "migrate:supabase": "node server/migrate-to-supabase.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -19,6 +22,7 @@
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
     "@capacitor/ios": "^8.4.1",
+    "@supabase/supabase-js": "^2.112.3",
     "lucide-react": "^1.20.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
