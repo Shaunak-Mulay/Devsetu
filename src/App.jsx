@@ -4710,49 +4710,146 @@ export default function App() {
                     <HelpCircle size={18} color="var(--text-muted)" />
                   </div>
                   
-                  <div className="phone-screen-body" style={{ display: "flex", flexDirection: "column", gap: "14px", height: "calc(100% - 52px)", overflowY: "auto" }}>
+                  <div className="phone-screen-body" style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "16px", paddingBottom: "100px", overflowY: "auto" }}>
+                    {/* Header Banner */}
                     <div style={{
                       padding: "16px",
-                      borderRadius: "14px",
-                      background: "linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.02))",
-                      border: "1px solid var(--temple-gold)"
+                      borderRadius: "16px",
+                      background: "linear-gradient(135deg, rgba(212,175,55,0.15), rgba(160,82,45,0.08))",
+                      border: "1.5px solid var(--temple-gold)",
+                      textAlign: "center"
                     }}>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: "0 0 6px 0" }}>Namaste Shastri Ji</h4>
-                      <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
-                        Welcome to the DEVSETU Partner Support System. Find quick answers to common queries below or connect directly with our support team.
+                      <div style={{ fontSize: "28px", marginBottom: "4px" }}>📖</div>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--primary-brown)", margin: "0 0 4px 0" }}>
+                        DEVSETU CONNECT — User Manual & Guide
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.5", margin: 0 }}>
+                        Official Operational Guide & Flow for Astrologer Partners and System Administration.
                       </p>
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      <div className="premium-card" style={{ padding: "12px" }}>
-                        <h5 style={{ fontSize: "12px", fontWeight: "800", color: "var(--text-main)", margin: "0 0 4px 0" }}>🔑 How to reset my PIN?</h5>
-                        <p style={{ fontSize: "10px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
-                          Click 'Forgot PIN' on the sign-in screen, submit your details, copy the generated template, and WhatsApp/SMS it to Devsetu Administration.
-                        </p>
-                      </div>
-
-                      <div className="premium-card" style={{ padding: "12px" }}>
-                        <h5 style={{ fontSize: "12px", fontWeight: "800", color: "var(--text-main)", margin: "0 0 4px 0" }}>💰 How to get bookings approved?</h5>
-                        <p style={{ fontSize: "10px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
-                          Once a booking is created, copy the payment QR, pay the 20% advance amount, and submit the 12-digit transaction UTR number with a screenshot.
-                        </p>
-                      </div>
-
-                      <div className="premium-card" style={{ padding: "12px" }}>
-                        <h5 style={{ fontSize: "12px", fontWeight: "800", color: "var(--text-main)", margin: "0 0 4px 0" }}>🕉️ Platform Service Fee</h5>
-                        <p style={{ fontSize: "10px", color: "var(--text-muted)", lineHeight: "1.4", margin: 0 }}>
-                          Devsetu charges a flat 10% platform commission on completed rituals, which covers SMS delivery, cloud servers, and payment gateway costs.
-                        </p>
+                    {/* Section 1: Getting Started */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        1. 🚀 GETTING STARTED
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
+                        DEVSETU CONNECT is a digital platform designed to help verified astrologers and spiritual-service partners manage Pooja services, bookings, payments, and communications.
+                      </p>
+                      <div style={{ backgroundColor: "var(--warm-cream-darker)", padding: "10px", borderRadius: "8px", fontSize: "11px" }}>
+                        <strong>Astrologers can:</strong> Register, Login via Mobile & 6-Digit PIN, Browse Pooja services, Book rituals, Submit UPI advance UTRs, Track status, and Manage support tickets.
                       </div>
                     </div>
 
-                    <button 
-                      onClick={() => setAstroTab("support")} 
-                      className="btn-primary"
-                      style={{ width: "100%", padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginTop: "auto" }}
-                    >
-                      <MessageSquare size={16} /> Open Support Chat
-                    </button>
+                    {/* Section 2: Important Compliance Rules */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "#D32F2F", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        2. ⚠️ IMPORTANT RULES & COMPLIANCE
+                      </h4>
+                      <ul style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0, paddingLeft: "16px" }}>
+                        <li>Provide correct and accurate information during registration.</li>
+                        <li>Keep your <strong>6-Digit Login PIN</strong> strictly confidential.</li>
+                        <li>Verify Yajmaan/Client details prior to submitting a booking.</li>
+                        <li>Make payments only via the official DEVSETU payment QR.</li>
+                        <li>Always submit the correct 12-digit UTR transaction ID.</li>
+                        <li style={{ color: "#D32F2F", fontWeight: "700" }}>DEVSETU will NEVER ask for your UPI PIN, ATM PIN, or Banking Passwords.</li>
+                      </ul>
+                    </div>
+
+                    {/* Section 3: Registration & Validation */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        3. 📝 REGISTRATION & ACCOUNT VALIDATION
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
+                        1. Open DEVSETU CONNECT ➔ Select <strong>Register / Sign Up</strong>.<br/>
+                        2. Fill in Name, Mobile Number, Email, Location, Specialization & Experience.<br/>
+                        3. Set your secret <strong>6-Digit Login PIN</strong>.<br/>
+                        4. Upon submission, a unique <strong>Profile ID</strong> (e.g. <code>DEV-AST-00001</code>) is assigned.<br/>
+                        5. Registrations undergo Admin review (Status: Approved / Pending / Rejected).
+                      </p>
+                    </div>
+
+                    {/* Section 4: Login & Forgot PIN */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        4. 🔑 LOGIN & FORGOT PIN FLOW
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
+                        • <strong>Signing In:</strong> Enter your registered mobile number and 6-digit PIN.<br/>
+                        • <strong>Forgot PIN:</strong> Click <em>Forgot PIN?</em> on the login screen, enter your phone and registered email, and submit. You can copy the generated SMS/WhatsApp template to send to DEVSETU Admin. Admin will issue a temporary PIN valid for initial login.
+                      </p>
+                    </div>
+
+                    {/* Section 5: Pooja Services & Booking */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        5. 🕉️ POOJA SERVICES & BOOKINGS
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
+                        • Browse categories: Vedic Rituals, Dosha Nivarana, Festival Pujas, Mahadev Pujas, etc.<br/>
+                        • Select ritual package and click <strong>Book Pooja</strong>.<br/>
+                        • Enter Yajmaan details: Client Name, DOB, Contact Phone, Gotra, Preferred Date, City & Performing Venue.
+                      </p>
+                    </div>
+
+                    {/* Section 6: Advance Payment & UTR */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        6. 💳 20% ADVANCE PAYMENT & UTR
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
+                        • A 20% advance payment is required to reserve ritual dates & Pandits.<br/>
+                        • Scan the displayed DEVSETU UPI QR code using GPay, PhonePe, or Paytm.<br/>
+                        • Copy the 12-digit transaction <strong>UTR Number</strong> from your UPI receipt and enter it into the app.<br/>
+                        • Submit the booking for Admin verification.
+                      </p>
+                    </div>
+
+                    {/* Section 7: Booking Statuses */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        7. 📊 BOOKING STATUS TRACKING
+                      </h4>
+                      <div style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6" }}>
+                        <code>submitted</code> ➔ Booking & UTR received.<br/>
+                        <code>approved</code> ➔ Advance payment verified by Admin.<br/>
+                        <code>scheduled</code> ➔ Pandit team & materials assigned.<br/>
+                        <code>completed</code> ➔ Ritual successfully performed.<br/>
+                        <code>rejected / cancelled</code> ➔ Booking declined or cancelled.
+                      </div>
+                    </div>
+
+                    {/* Section 8: Support Tickets */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        8. 💬 PRIVATE SUPPORT TICKETS
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
+                        Support communications are 100% private to your account. Open a support ticket under the <strong>Support</strong> tab for any booking, payment, or technical assistance.
+                      </p>
+                    </div>
+
+                    {/* Section 9: Account Deletion */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "#D32F2F", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        9. 🗑️ ACCOUNT DELETION & DELEGATION
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
+                        You can request account deletion anytime via the <strong>Delete Account</strong> button in your Profile tab, or online at: <br/>
+                        <a href="https://devsetu-eta.vercel.app/#delete-account" target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary-brown)", fontWeight: "700" }}>https://devsetu-eta.vercel.app/#delete-account</a>
+                      </p>
+                    </div>
+
+                    {/* Section 10: Legal Policies */}
+                    <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                        10. 📜 PRIVACY POLICY & TERMS
+                      </h4>
+                      <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
+                        Read the full 21-section Privacy Policy and 14-section Terms & Conditions under your Profile ➔ <em>Legal & About Information</em>.
+                      </p>
+                    </div>
                   </div>
                 </>
               )}
