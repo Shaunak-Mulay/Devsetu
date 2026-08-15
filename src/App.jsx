@@ -319,7 +319,16 @@ export default function App() {
   // Current User (Astrologer) Profile
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem("devsetu_user");
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.role === 'admin' && (parsed.phone === "9999999999" || parsed.mobile === "9999999999" || !parsed.phone)) {
+        parsed.phone = "9763147067";
+        parsed.mobile = "9763147067";
+        localStorage.setItem("devsetu_user", JSON.stringify(parsed));
+      }
+      return parsed;
+    } catch (e) { return null; }
   });
 
   // Accessibility & Missing Page States
@@ -327,7 +336,16 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("devsetu_user"));
   const [adminUser, setAdminUser] = useState(() => {
     const saved = localStorage.getItem("devsetu_admin_user");
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && (parsed.phone === "9999999999" || parsed.mobile === "9999999999" || !parsed.phone)) {
+        parsed.phone = "9763147067";
+        parsed.mobile = "9763147067";
+        localStorage.setItem("devsetu_admin_user", JSON.stringify(parsed));
+      }
+      return parsed;
+    } catch (e) { return null; }
   });
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => !!localStorage.getItem("devsetu_admin_user"));
   const [isAccessibilityMode, setIsAccessibilityMode] = useState(false);
@@ -5673,7 +5691,12 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       <span>{adminUser?.name || "System Administrator"}</span>
                       
                       <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Mobile Number:</span>
-                      <span>{adminUser?.phone || adminUser?.mobile || "9763147067"}</span>
+                      <span>
+                        {(() => {
+                          const val = adminUser?.phone || adminUser?.mobile || currentUser?.phone || currentUser?.mobile;
+                          return (!val || val === "9999999999") ? "9763147067" : val;
+                        })()}
+                      </span>
                       
                       <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Email Address:</span>
                       <span>{adminUser?.email || "admin@devsetu.com"}</span>
