@@ -346,7 +346,7 @@ export async function login(req, res) {
             role: supabaseAuthUser.user_metadata?.role || 'admin',
             name: supabaseAuthUser.user_metadata?.name || emailToAuth.split('@')[0] || 'Administrator',
             email: supabaseAuthUser.email || emailToAuth,
-            phone: supabaseAuthUser.phone || '9999999999',
+            phone: supabaseAuthUser.phone || '9763147067',
             accountStatus: 'approved',
             sessionVersion: 1
           };
@@ -410,7 +410,7 @@ export async function login(req, res) {
           role: 'admin',
           name: 'System Administrator',
           email: targetVal.includes('@') ? targetVal.trim().toLowerCase() : 'devsetuconnect@gmail.com',
-          phone: '9999999999',
+          phone: '9763147067',
           accountStatus: 'approved',
           sessionVersion: 1
         };

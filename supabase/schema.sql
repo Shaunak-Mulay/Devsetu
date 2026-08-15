@@ -176,7 +176,7 @@ BEGIN
         'ADM00001',
         COALESCE(NEW.raw_user_meta_data->>'name', split_part(COALESCE(NEW.email, 'User'), '@', 1)),
         NEW.email,
-        COALESCE(NEW.phone, '9999999999'),
+        COALESCE(NEW.phone, '9763147067'),
         'admin',
         'approved'
     )
@@ -518,7 +518,7 @@ INSERT INTO public.profiles (
     'ADM00001',
     'System Administrator',
     'devsetuconnect@gmail.com',
-    '9999999999',
+    '9763147067',
     'admin',
     'approved',
     'Maharashtra',

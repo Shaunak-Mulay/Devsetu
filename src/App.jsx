@@ -5673,7 +5673,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       <span>{adminUser?.name || "System Administrator"}</span>
                       
                       <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Mobile Number:</span>
-                      <span>{adminUser?.phone || adminUser?.mobile || "9999999999"}</span>
+                      <span>{adminUser?.phone || adminUser?.mobile || "9763147067"}</span>
                       
                       <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>Email Address:</span>
                       <span>{adminUser?.email || "admin@devsetu.com"}</span>
