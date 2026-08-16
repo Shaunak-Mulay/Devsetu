@@ -309,7 +309,6 @@ export default function App() {
   const [activeRoleSelection, setActiveRoleSelection] = useState(() => {
     if (isNativeMobile) return "astrologer";
     if (localStorage.getItem("devsetu_user")) return "astrologer";
-    if (localStorage.getItem("devsetu_admin_user")) return "admin";
     return null;
   }); // 'astrologer', 'admin', or null
 
@@ -331,20 +330,10 @@ export default function App() {
   // Accessibility & Missing Page States
   const [isSplash, setIsSplash] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("devsetu_user"));
-  const [adminUser, setAdminUser] = useState(() => {
-    const saved = localStorage.getItem("devsetu_admin_user");
-    if (!saved) return null;
-    try {
-      const parsed = JSON.parse(saved);
-      if (parsed && (parsed.phone === "9999999999" || parsed.mobile === "9999999999" || !parsed.phone)) {
-        parsed.phone = "9763147067";
-        parsed.mobile = "9763147067";
-        localStorage.setItem("devsetu_admin_user", JSON.stringify(parsed));
-      }
-      return parsed;
-    } catch (e) { return null; }
-  });
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => !!localStorage.getItem("devsetu_admin_user"));
+  
+  // Admin Security: Admin session requires explicit login and is NEVER auto-authenticated on app launch
+  const [adminUser, setAdminUser] = useState(null);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isAccessibilityMode, setIsAccessibilityMode] = useState(false);
   const [profileAccordion, setProfileAccordion] = useState("personal");
 
@@ -2242,16 +2231,11 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => {
-                        const newUrl = prompt("Enter backend API base URL:", localStorage.getItem("devsetu_api_base") || "https://devsetu-eta.vercel.app");
-                        if (newUrl !== null) {
-                          localStorage.setItem("devsetu_api_base", newUrl.trim());
-                          alert("API URL updated! Reloading app...");
-                          window.location.reload();
-                        }
+                        alert(`Live Production Backend API: https://devsetu-eta.vercel.app\n(Backend URL automatically configured from code)`);
                       }}
                       className="btn-secondary"
                       style={{ width: "28px", height: "28px", padding: 0, borderRadius: "50%", border: "1px solid var(--border-color)", display: "flex", alignItems: "center", justifyContent: "center" }}
-                      title="Set API Base URL"
+                      title="API Base Info"
                     >
                       <Settings size={12} />
                     </button>

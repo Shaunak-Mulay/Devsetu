@@ -1301,32 +1301,42 @@ input:checked + .slider:before {
 .minimal-input-wrapper {
   position: relative;
   width: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .minimal-input {
   width: 100%;
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--border-color);
-  padding: 12px 12px 12px 36px;
-  font-size: 14px;
+  background-color: var(--warm-cream-darker);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 42px 12px 40px;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-main);
   outline: none;
-  transition: border-color 0.3s;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .minimal-input:focus {
-  border-bottom-color: var(--temple-gold);
+  border-color: var(--temple-gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+  background-color: var(--phone-card-bg);
 }
 
 .minimal-input-icon {
   position: absolute;
-  left: 8px;
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
   font-size: 18px;
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
 }
 
 /* Login Tab Buttons */
@@ -2393,6 +2403,61 @@ input:checked + .slider:before {
     width: 60% !important;
     padding: 40px;
     gap: 20px;
+  }
+}
+
+/* Mobile Responsive Header & UI Alignment Rules */
+@media (max-width: 768px) {
+  .workspace-header {
+    padding: 8px 12px !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: space-between !important;
+  }
+
+  .brand-logo-img {
+    height: 32px !important;
+  }
+
+  .header-controls {
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .layout-segmented-control {
+    padding: 2px !important;
+    overflow-x: auto !important;
+    max-width: 100% !important;
+  }
+
+  .layout-segmented-control button {
+    padding: 0 8px !important;
+    font-size: 10px !important;
+    height: 26px !important;
+  }
+
+  .admin-navbar {
+    padding: 8px 12px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .admin-main-content {
+    padding: 16px !important;
+    gap: 16px !important;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .stat-card {
+    padding: 14px !important;
+    gap: 10px !important;
+  }
+
+  .stat-value {
+    font-size: 18px !important;
   }
 }
 
