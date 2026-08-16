@@ -7,10 +7,8 @@ class PaymentService {
       return;
     }
     const saved = localStorage.getItem("devsetu_api_base");
-    if (saved && !saved.includes("onrender.com")) {
+    if (saved && !saved.includes("onrender.com") && !saved.includes("localhost") && !saved.includes("127.0.0.1")) {
       this.apiBase = saved.replace(/\/+$/, "");
-    } else if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-      this.apiBase = "http://localhost:5000";
     } else {
       this.apiBase = "https://devsetu-eta.vercel.app";
     }

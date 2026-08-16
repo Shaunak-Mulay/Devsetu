@@ -39,25 +39,13 @@ import {
 import { servicesData, translations, sampleScreenshots, mockAstrologers, SUPPORT_CONFIG } from "./data";
 import { paymentService } from "./services/PaymentService";
 const getApiBase = () => {
-  const saved = localStorage.getItem("devsetu_api_base");
-  if (saved && !saved.includes("onrender.com")) {
-    return saved.replace(/\/+$/, "");
-  }
-
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    // Check if running inside Capacitor (Android/iOS)
-    if (window.Capacitor) {
-      return "https://devsetu-eta.vercel.app";
-    }
-    // Local development
-    if (host === "localhost" || host === "127.0.0.1" || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)) {
-      return `http://${host}:5000`;
-    }
-  }
-
   if (import.meta.env.VITE_API_BASE) {
     return import.meta.env.VITE_API_BASE.replace(/\/+$/, "");
+  }
+
+  const saved = localStorage.getItem("devsetu_api_base");
+  if (saved && !saved.includes("onrender.com") && !saved.includes("localhost") && !saved.includes("127.0.0.1")) {
+    return saved.replace(/\/+$/, "");
   }
 
   return "https://devsetu-eta.vercel.app";
