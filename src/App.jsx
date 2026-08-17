@@ -308,6 +308,7 @@ export default function App() {
   const [language, setLanguage] = useState(() => localStorage.getItem("devsetu_lang") || "en");
   const [activeRoleSelection, setActiveRoleSelection] = useState(() => {
     if (isNativeMobile) return "astrologer";
+    if (localStorage.getItem("devsetu_admin_user")) return "admin";
     if (localStorage.getItem("devsetu_user")) return "astrologer";
     return null;
   }); // 'astrologer', 'admin', or null
@@ -331,9 +332,17 @@ export default function App() {
   const [isSplash, setIsSplash] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem("devsetu_user"));
   
-  // Admin Security: Admin session requires explicit login and is NEVER auto-authenticated on app launch
-  const [adminUser, setAdminUser] = useState(null);
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  // Admin Session: Preserves active authenticated admin session across browser tab refreshes
+  const [adminUser, setAdminUser] = useState(() => {
+    const savedAdmin = localStorage.getItem("devsetu_admin_user");
+    if (!savedAdmin) return null;
+    try {
+      return JSON.parse(savedAdmin);
+    } catch (e) {
+      return null;
+    }
+  });
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => !!localStorage.getItem("devsetu_admin_user"));
   const [isAccessibilityMode, setIsAccessibilityMode] = useState(false);
   const [profileAccordion, setProfileAccordion] = useState("personal");
 
@@ -443,7 +452,7 @@ export default function App() {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupDistrict, setSignupDistrict] = useState("");
-  const [signupSpecialization, setSignupSpecialization] = useState("Vedic Pooja");
+  const [signupSpecialization, setSignupSpecialization] = useState("Horoscope Reading");
 
   // Admin Login States
   const [adminUsername, setAdminUsername] = useState("");
@@ -567,8 +576,10 @@ export default function App() {
   const [showCreateTicketModal, setShowCreateTicketModal] = useState(false);
   const [newTicketForm, setNewTicketForm] = useState({ category: "General Queries", subject: "" });
 
-  // Astrologer Bookings Filter Tab State
+  // Astrologer Bookings & Service Marketplace Filter States
   const [astroBookingFilter, setAstroBookingFilter] = useState("all");
+  const [astroServiceSearch, setAstroServiceSearch] = useState("");
+  const [astroServiceCategoryFilter, setAstroServiceCategoryFilter] = useState("all");
 
   // Dynamic Pooja Services State (Admin managed + default services)
   const [poojaServices, setPoojaServices] = useState(() => {
@@ -583,6 +594,219 @@ export default function App() {
     }
     return servicesData;
   });
+
+  // Dynamic Pooja Categories State & Management
+  const [poojaCategories, setPoojaCategories] = useState(() => {
+    const defaultCats = ["Vedic Rituals", "Dosh Nivaran", "Graha Shanti", "Prosperity & Kuber", "Custom Special Ritual"];
+    const saved = localStorage.getItem("devsetu_pooja_categories");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.warn("Failed to parse pooja categories from localStorage:", e);
+      }
+    }
+    return defaultCats;
+  });
+
+  const [selectedCatalogCategory, setSelectedCatalogCategory] = useState("all");
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [showManageCategoriesModal, setShowManageCategoriesModal] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState("");
+  const [selectedAdminViewPackagesService, setSelectedAdminViewPackagesService] = useState(null);
+
+  // Edit Pooja & Packages State for Admin
+  const [editingPoojaService, setEditingPoojaService] = useState(null);
+  const [editPoojaForm, setEditPoojaForm] = useState(null);
+
+  const handleOpenEditPooja = (service) => {
+    setEditingPoojaService(service);
+    setEditPoojaForm({
+      id: service.id,
+      titleEN: service.titleEN || service.title || "",
+      titleHI: service.titleHI || "",
+      titleMR: service.titleMR || "",
+      category: service.category || "Vedic Rituals",
+      startingPrice: service.startingPrice || 0,
+      pattern: service.pattern || "pattern-shiva",
+      descriptionEN: service.descriptionEN || "",
+      descriptionHI: service.descriptionHI || "",
+      descriptionMR: service.descriptionMR || "",
+      benefitsEN: (service.benefits?.en || []).join("\n"),
+      benefitsHI: (service.benefits?.hi || []).join("\n"),
+      benefitsMR: (service.benefits?.mr || []).join("\n"),
+      packages: Array.isArray(service.packages) && service.packages.length > 0 
+        ? service.packages.map(p => ({
+            id: p.id || "pkg-" + Math.random().toString(36).substr(2, 9),
+            nameEN: p.name?.en || p.name || "",
+            nameHI: p.name?.hi || "",
+            nameMR: p.name?.mr || "",
+            price: p.price || 0,
+            astroFee: p.astroFee || 0,
+            durationEN: p.duration?.en || p.duration || "3 Hours",
+            durationHI: p.duration?.hi || "",
+            durationMR: p.duration?.mr || "",
+            detailsEN: p.details?.en || p.details || "",
+            detailsHI: p.details?.hi || "",
+            detailsMR: p.details?.mr || ""
+          }))
+        : [{
+            id: "pkg-" + Date.now(),
+            nameEN: "Ekam Shanti (1 Pandit)",
+            nameHI: "एकम शांति (1 पंडित)",
+            nameMR: "एकम शांती (1 पंडित)",
+            price: service.startingPrice || 5000,
+            astroFee: Math.round((service.startingPrice || 5000) * 0.1),
+            durationEN: "3 Hours",
+            durationHI: "3 घंटे",
+            durationMR: "3 तास",
+            detailsEN: "Complete sacred pooja ritual with single priest setup.",
+            detailsHI: "एक पंडित द्वारा पूर्ण पवित्र पूजा अनुष्ठान।",
+            detailsMR: "एक गुरुजींद्वारे पूर्ण पवित्र पूजा विधी."
+          }]
+    });
+  };
+
+  const handleSaveEditedPooja = async (e) => {
+    e.preventDefault();
+    if (!editPoojaForm || !editPoojaForm.titleEN) {
+      alert("Pooja Title is required.");
+      return;
+    }
+
+    const priceNum = Number(editPoojaForm.startingPrice) || 0;
+    
+    // Process packages
+    const formattedPackages = (editPoojaForm.packages || []).map((pkg, idx) => ({
+      id: pkg.id || `pkg-${Date.now()}-${idx}`,
+      name: {
+        en: pkg.nameEN || "Standard Package",
+        hi: pkg.nameHI || pkg.nameEN || "मानक पैकेज",
+        mr: pkg.nameMR || pkg.nameEN || "मानक पॅकेज"
+      },
+      price: Number(pkg.price) || priceNum,
+      astroFee: Number(pkg.astroFee) || Math.round(priceNum * 0.1),
+      duration: {
+        en: pkg.durationEN || "3 Hours",
+        hi: pkg.durationHI || pkg.durationEN || "3 घंटे",
+        mr: pkg.durationMR || pkg.durationEN || "3 तास"
+      },
+      details: {
+        en: pkg.detailsEN || "Sacred Vedic ritual setup.",
+        hi: pkg.detailsHI || pkg.detailsEN || "पवित्र वैदिक अनुष्ठान।",
+        mr: pkg.detailsMR || pkg.detailsEN || "पवित्र वैदिक विधी."
+      }
+    }));
+
+    const splitLines = (str) => (str || "").split("\n").map(s => s.trim()).filter(Boolean);
+
+    const updatedService = {
+      ...editingPoojaService,
+      title: editPoojaForm.titleEN,
+      titleEN: editPoojaForm.titleEN,
+      titleHI: editPoojaForm.titleHI || editPoojaForm.titleEN,
+      titleMR: editPoojaForm.titleMR || editPoojaForm.titleEN,
+      category: editPoojaForm.category,
+      startingPrice: priceNum,
+      pattern: editPoojaForm.pattern,
+      descriptionEN: editPoojaForm.descriptionEN,
+      descriptionHI: editPoojaForm.descriptionHI || editPoojaForm.descriptionEN,
+      descriptionMR: editPoojaForm.descriptionMR || editPoojaForm.descriptionEN,
+      benefits: {
+        en: splitLines(editPoojaForm.benefitsEN).length > 0 ? splitLines(editPoojaForm.benefitsEN) : ["Brings peace and positive energy"],
+        hi: splitLines(editPoojaForm.benefitsHI).length > 0 ? splitLines(editPoojaForm.benefitsHI) : ["शांति और सकारात्मक ऊर्जा लाता है"],
+        mr: splitLines(editPoojaForm.benefitsMR).length > 0 ? splitLines(editPoojaForm.benefitsMR) : ["शांती आणि सकारात्मक ऊर्जा आणते"]
+      },
+      packages: formattedPackages
+    };
+
+    // Update state locally
+    setPoojaServices(prev => prev.map(s => s.id === updatedService.id ? updatedService : s));
+    setEditingPoojaService(null);
+    setEditPoojaForm(null);
+
+    // Save to API
+    try {
+      await fetch(`${API_BASE}/api/admin/services/${updatedService.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedService)
+      });
+    } catch (err) {
+      console.warn("Service updated locally:", err);
+    }
+
+    alert(`🎉 Pooja Service "${updatedService.titleEN}" updated successfully! All changes are live for astrologers.`);
+  };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("devsetu_pooja_categories", JSON.stringify(poojaCategories));
+    } catch (e) {
+      console.warn("Failed to save pooja categories:", e);
+    }
+  }, [poojaCategories]);
+
+  // Synchronize dynamic categories from services if new ones exist
+  useEffect(() => {
+    if (poojaServices && poojaServices.length > 0) {
+      const existingSet = new Set(poojaCategories);
+      let updated = false;
+      poojaServices.forEach(s => {
+        if (s.category && !existingSet.has(s.category)) {
+          existingSet.add(s.category);
+          updated = true;
+        }
+      });
+      if (updated) {
+        setPoojaCategories(Array.from(existingSet));
+      }
+    }
+  }, [poojaServices]);
+
+  const handleAddCategory = (nameToCreate) => {
+    const trimmed = (nameToCreate || newCategoryInput).trim();
+    if (!trimmed) {
+      alert("Category name cannot be empty.");
+      return;
+    }
+    const exists = poojaCategories.some(c => c.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      alert(`Category "${trimmed}" already exists.`);
+      return;
+    }
+    const updated = [...poojaCategories, trimmed];
+    setPoojaCategories(updated);
+    setNewCategoryInput("");
+    setShowAddCategoryModal(false);
+    setNewPoojaForm(prev => ({ ...prev, category: trimmed }));
+    alert(`🎉 New Category "${trimmed}" added successfully!`);
+  };
+
+  const handleDeleteCategory = (catName) => {
+    if (poojaCategories.length <= 1) {
+      alert("You must keep at least one active category.");
+      return;
+    }
+    const count = poojaServices.filter(s => s.category === catName).length;
+    const confirmMsg = count > 0 
+      ? `Category "${catName}" currently contains ${count} pooja(s). Delete this category and move its poojas to "Vedic Rituals"?` 
+      : `Are you sure you want to delete category "${catName}"?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    const filteredCats = poojaCategories.filter(c => c !== catName);
+    setPoojaCategories(filteredCats);
+
+    const fallbackCat = filteredCats[0] || "Vedic Rituals";
+    setPoojaServices(prev => prev.map(s => s.category === catName ? { ...s, category: fallbackCat } : s));
+
+    if (selectedCatalogCategory === catName) {
+      setSelectedCatalogCategory("all");
+    }
+    alert(`Category "${catName}" has been removed.`);
+  };
 
   const [showAddPoojaModal, setShowAddPoojaModal] = useState(false);
   const [newPoojaForm, setNewPoojaForm] = useState({
@@ -1251,7 +1475,7 @@ export default function App() {
       setSignupPassword("");
       setSignupConfirmPassword("");
       setSignupDistrict("");
-      setSignupSpecialization("Vedic Pooja");
+      setSignupSpecialization("Horoscope Reading");
     } catch (err) {
       console.error(err);
       alert("Network error occurred during registration.");
@@ -1736,7 +1960,7 @@ export default function App() {
           <img 
             src={theme === "light" 
               ? "/devsetu_light_logo.png" 
-              : "/devsetu_dark_logo.png"}
+              : "/devsetu_dark_circular_logo.png"}
             alt="DevSetu Logo" 
             className="brand-logo-img"
           />
@@ -1949,7 +2173,7 @@ export default function App() {
           <div className="role-selection-header">
             <div className="role-selection-logo">
               <img 
-                src={theme === "light" ? "/devsetu_light_logo.png" : "/devsetu_dark_logo.png"} 
+                src={theme === "light" ? "/devsetu_light_logo.png" : "/devsetu_dark_circular_logo.png"} 
                 alt="DevSetu Logo" 
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
@@ -2215,7 +2439,7 @@ export default function App() {
                       <img 
                         src={theme === "light" 
                           ? "/devsetu_light_logo.png" 
-                          : "/devsetu_dark_logo.png"}
+                          : "/devsetu_dark_circular_logo.png"}
                         alt="DevSetu Logo" 
                         style={{ width: "100%", height: "100%", objectFit: "contain" }}
                       />
@@ -2249,7 +2473,7 @@ export default function App() {
                 </div>
               ) : !isLoggedIn ? (
                 /* 0b. LOGIN SCREEN */
-                <div className="phone-screen-body fade-in" style={{ padding: "20px", height: "100%", display: "flex", flexDirection: "column" }}>
+                <div className="phone-screen-body fade-in" style={{ padding: "20px", minHeight: "100%", display: "flex", flexDirection: "column", overflowY: "auto", paddingBottom: "60px" }}>
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginBottom: "32px", width: "100%" }}>
                     <select 
                       value={language}
@@ -2287,7 +2511,7 @@ export default function App() {
                       <img 
                         src={theme === "light" 
                           ? "/devsetu_light_logo.png" 
-                          : "/devsetu_dark_logo.png"}
+                          : "/devsetu_dark_circular_logo.png"}
                         alt="DevSetu Logo" 
                         style={{ width: "100%", height: "100%", objectFit: "contain" }}
                       />
@@ -2729,18 +2953,27 @@ export default function App() {
                           textAlign: "center", 
                           marginTop: "16px", 
                           fontSize: "11px", 
-                          color: "var(--text-muted)", 
+                          color: theme === "dark" ? "#FFFFFF" : "var(--text-muted)", 
                           lineHeight: "1.5",
-                          backgroundColor: "rgba(212,175,55,0.06)",
+                          backgroundColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(212,175,55,0.06)",
                           padding: "8px 12px",
                           borderRadius: "8px",
-                          border: "1px solid rgba(212,175,55,0.2)"
+                          border: theme === "dark" ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(212,175,55,0.2)"
                         }}>
                           By signing in or continuing, you agree to our{" "}
                           <button 
                             type="button" 
                             onClick={() => setShowPrivacyModal(true)} 
-                            style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
+                            style={{ 
+                              background: "none", 
+                              border: "none", 
+                              color: theme === "dark" ? "#FFFFFF" : "var(--primary-brown)", 
+                              fontWeight: "800", 
+                              textDecoration: "underline", 
+                              padding: 0, 
+                              cursor: "pointer", 
+                              fontSize: "11px" 
+                            }}
                           >
                             Privacy Policy
                           </button>{" "}
@@ -2748,15 +2981,33 @@ export default function App() {
                           <button 
                             type="button" 
                             onClick={() => setShowTermsModal(true)} 
-                            style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
+                            style={{ 
+                              background: "none", 
+                              border: "none", 
+                              color: theme === "dark" ? "#FFFFFF" : "var(--primary-brown)", 
+                              fontWeight: "800", 
+                              textDecoration: "underline", 
+                              padding: 0, 
+                              cursor: "pointer", 
+                              fontSize: "11px" 
+                            }}
                           >
                             T & C
                           </button>
                         </div>
 
-                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: "var(--text-muted)" }}>
+                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: theme === "dark" ? "#FFFFFF" : "var(--text-muted)" }}>
                           {localTranslations[language]?.loginSignUpPrompt || localTranslations.en.loginSignUpPrompt}
-                          <a href="#" style={{ color: "var(--primary-brown)", fontWeight: "800", textDecoration: "none" }} onClick={(e) => { e.preventDefault(); setIsRegistering(true); }}>
+                          <a 
+                            href="#" 
+                            style={{ 
+                              color: theme === "dark" ? "#FFFFFF" : "var(--primary-brown)", 
+                              fontWeight: "800", 
+                              textDecoration: "underline",
+                              marginLeft: "4px" 
+                            }} 
+                            onClick={(e) => { e.preventDefault(); setIsRegistering(true); }}
+                          >
                             {localTranslations[language]?.loginSignUp || localTranslations.en.loginSignUp}
                           </a>
                         </div>
@@ -2863,8 +3114,9 @@ export default function App() {
                               className="form-select"
                               style={{ width: "100%", padding: "12px", fontSize: "14px", height: "48px" }}
                             >
-                              <option value="Vedic Pooja">Vedic Pooja</option>
                               <option value="Horoscope Reading">Horoscope Reading</option>
+                              <option value="Tarot Astrology">Tarot Astrology</option>
+                              <option value="Face Reading / Physiognomy">Face Reading / Physiognomy</option>
                               <option value="Vastu Shastra">Vastu Shastra</option>
                               <option value="Numerology">Numerology</option>
                               <option value="Palmistry">Palmistry</option>
@@ -2921,20 +3173,29 @@ export default function App() {
 
                           <div style={{ 
                             fontSize: "11px", 
-                            color: "var(--text-muted)", 
+                            color: theme === "dark" ? "#FFFFFF" : "var(--text-muted)", 
                             margin: "6px 0 10px", 
                             lineHeight: "1.5", 
                             textAlign: "center",
-                            backgroundColor: "rgba(212,175,55,0.06)",
+                            backgroundColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(212,175,55,0.06)",
                             padding: "8px 12px",
                             borderRadius: "8px",
-                            border: "1px solid rgba(212,175,55,0.2)"
+                            border: theme === "dark" ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(212,175,55,0.2)"
                           }}>
                             By clicking Sign Up, you agree to our{" "}
                             <button 
                               type="button" 
                               onClick={() => setShowPrivacyModal(true)} 
-                              style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
+                              style={{ 
+                                background: "none", 
+                                border: "none", 
+                                color: theme === "dark" ? "#FFFFFF" : "var(--primary-brown)", 
+                                fontWeight: "800", 
+                                textDecoration: "underline", 
+                                padding: 0, 
+                                cursor: "pointer", 
+                                fontSize: "11px" 
+                              }}
                             >
                               Privacy Policy
                             </button>{" "}
@@ -2942,7 +3203,16 @@ export default function App() {
                             <button 
                               type="button" 
                               onClick={() => setShowTermsModal(true)} 
-                              style={{ background: "none", border: "none", color: "var(--primary-brown)", fontWeight: "800", textDecoration: "underline", padding: 0, cursor: "pointer", fontSize: "11px" }}
+                              style={{ 
+                                background: "none", 
+                                border: "none", 
+                                color: theme === "dark" ? "#FFFFFF" : "var(--primary-brown)", 
+                                fontWeight: "800", 
+                                textDecoration: "underline", 
+                                padding: 0, 
+                                cursor: "pointer", 
+                                fontSize: "11px" 
+                              }}
                             >
                               T & C
                             </button>.
@@ -2957,9 +3227,18 @@ export default function App() {
                           </button>
                         </form>
 
-                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: "var(--text-muted)" }}>
+                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: theme === "dark" ? "#FFFFFF" : "var(--text-muted)" }}>
                           Already have an account?{" "}
-                          <a href="#" style={{ color: "var(--primary-brown)", fontWeight: "800", textDecoration: "none" }} onClick={(e) => { e.preventDefault(); setIsRegistering(false); }}>
+                          <a 
+                            href="#" 
+                            style={{ 
+                              color: theme === "dark" ? "#FFFFFF" : "var(--primary-brown)", 
+                              fontWeight: "800", 
+                              textDecoration: "underline",
+                              marginLeft: "4px" 
+                            }} 
+                            onClick={(e) => { e.preventDefault(); setIsRegistering(false); }}
+                          >
                             Sign In
                           </a>
                         </div>
@@ -3139,7 +3418,7 @@ export default function App() {
                     <img 
                       src={theme === "light" 
                         ? "/devsetu_light_logo.png" 
-                        : "/devsetu_dark_logo.png"}
+                        : "/devsetu_dark_circular_logo.png"}
                       alt="DevSetu Logo" 
                       style={{ height: "34px", width: "auto" }}
                     />
@@ -3366,55 +3645,127 @@ export default function App() {
                     <Compass size={18} color="var(--text-muted)" />
                   </div>
                   
-                  <div className="phone-screen-body">
-                    <p style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "center" }}>
+                  <div className="phone-screen-body" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    <p style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "center", margin: 0 }}>
                       {t.marketplaceSubtitle}
                     </p>
 
-                    {/* Search Mock */}
+                    {/* Real-time Search Input */}
                     <div style={{ position: "relative" }}>
                       <input 
                         type="text" 
-                        placeholder={t.categorySearch} 
+                        placeholder={t.categorySearch || "Search pooja by name or category..."} 
                         className="form-input" 
                         style={{ width: "100%", paddingLeft: "36px" }} 
+                        value={astroServiceSearch}
+                        onChange={(e) => setAstroServiceSearch(e.target.value)}
                       />
                       <Search size={16} color="var(--text-muted)" style={{ position: "absolute", left: "12px", top: "12px" }} />
                     </div>
 
-                    {/* Full Grid of Services */}
-                    <div className="services-grid-desktop" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "14px" }}>
-                      {poojaServices.map(service => (
-                        <div 
-                          key={service.id} 
-                          className="premium-card" 
-                          style={{ padding: 0 }}
-                        >
-                          <div className={`service-card-image ${service.pattern}`}>
-                            <div className="service-card-title">
-                              {language === "en" ? service.titleEN : language === "hi" ? service.titleHI : service.titleMR}
-                            </div>
-                          </div>
-                          <div style={{ padding: "14px" }}>
-                            <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "12px" }}>
-                              {language === "en" ? service.descriptionEN : language === "hi" ? service.descriptionHI : service.descriptionMR}
-                            </p>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <div style={{ fontSize: "12px", fontWeight: "800", color: "var(--orange-accent)" }}>
-                                ₹{service.startingPrice.toLocaleString()} {t.startingFrom}
-                              </div>
-                              <button 
-                                onClick={() => setSelectedService(service)}
-                                className="btn-primary" 
-                                style={{ padding: "6px 12px", fontSize: "11px" }}
-                              >
-                                {t.viewPackages}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                    {/* Astrologer Category Filter Pills */}
+                    <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px" }}>
+                      <button
+                        onClick={() => setAstroServiceCategoryFilter("all")}
+                        style={{
+                          padding: "6px 14px",
+                          borderRadius: "16px",
+                          border: astroServiceCategoryFilter === "all" ? "2px solid var(--temple-gold)" : "1px solid var(--border-color)",
+                          backgroundColor: astroServiceCategoryFilter === "all" ? "var(--primary-brown)" : "var(--card-bg)",
+                          color: astroServiceCategoryFilter === "all" ? "#FFF" : "var(--text-main)",
+                          fontSize: "11px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap"
+                        }}
+                      >
+                        All ({poojaServices.length})
+                      </button>
+                      {poojaCategories.map(cat => {
+                        const count = poojaServices.filter(s => s.category === cat).length;
+                        const isSel = astroServiceCategoryFilter === cat;
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() => setAstroServiceCategoryFilter(cat)}
+                            style={{
+                              padding: "6px 14px",
+                              borderRadius: "16px",
+                              border: isSel ? "2px solid var(--temple-gold)" : "1px solid var(--border-color)",
+                              backgroundColor: isSel ? "var(--primary-brown)" : "var(--card-bg)",
+                              color: isSel ? "#FFF" : "var(--text-main)",
+                              fontSize: "11px",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap"
+                            }}
+                          >
+                            📁 {cat} ({count})
+                          </button>
+                        );
+                      })}
                     </div>
+
+                    {/* Full Grid of Services */}
+                    {(() => {
+                      const filteredServices = poojaServices.filter(service => {
+                        const matchesCat = astroServiceCategoryFilter === "all" || service.category === astroServiceCategoryFilter;
+                        const q = astroServiceSearch.toLowerCase().trim();
+                        const matchesSearch = !q || 
+                          (service.titleEN && service.titleEN.toLowerCase().includes(q)) ||
+                          (service.titleHI && service.titleHI.toLowerCase().includes(q)) ||
+                          (service.titleMR && service.titleMR.toLowerCase().includes(q)) ||
+                          (service.category && service.category.toLowerCase().includes(q)) ||
+                          (service.descriptionEN && service.descriptionEN.toLowerCase().includes(q));
+                        return matchesCat && matchesSearch;
+                      });
+
+                      if (filteredServices.length === 0) {
+                        return (
+                          <div style={{ padding: "30px 16px", textAlign: "center", backgroundColor: "var(--warm-cream-darker)", borderRadius: "12px", border: "1px dashed var(--border-color)", color: "var(--text-muted)" }}>
+                            <p style={{ margin: 0, fontSize: "12px" }}>No Pooja services available under this search/category filter.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="services-grid-desktop" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "14px" }}>
+                          {filteredServices.map(service => (
+                            <div 
+                              key={service.id} 
+                              className="premium-card" 
+                              style={{ padding: 0 }}
+                            >
+                              <div className={`service-card-image ${service.pattern || "pattern-shiva"}`} style={{ position: "relative" }}>
+                                <div className="service-card-title">
+                                  {language === "en" ? service.titleEN : language === "hi" ? service.titleHI : service.titleMR}
+                                </div>
+                                <span style={{ position: "absolute", top: "10px", right: "10px", backgroundColor: "rgba(0,0,0,0.65)", color: "var(--temple-gold)", fontSize: "10px", padding: "3px 8px", borderRadius: "12px", fontWeight: "700" }}>
+                                  {service.category || "Vedic Rituals"}
+                                </span>
+                              </div>
+                              <div style={{ padding: "14px" }}>
+                                <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "12px" }}>
+                                  {language === "en" ? service.descriptionEN : language === "hi" ? service.descriptionHI : service.descriptionMR}
+                                </p>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <div style={{ fontSize: "12px", fontWeight: "800", color: "var(--orange-accent)" }}>
+                                    ₹{service.startingPrice.toLocaleString()} {t.startingFrom}
+                                  </div>
+                                  <button 
+                                    onClick={() => setSelectedService(service)}
+                                    className="btn-primary" 
+                                    style={{ padding: "6px 12px", fontSize: "11px" }}
+                                  >
+                                    {t.viewPackages}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </>
               )}
@@ -4452,7 +4803,7 @@ export default function App() {
                                 <strong>State:</strong> <span>{currentUser?.state || "Uttar Pradesh"}</span>
                                 <strong>District:</strong> <span>{currentUser?.district || "Not Provided"}</span>
                                 <strong>City:</strong> <span>{currentUser?.city || "Varanasi"}</span>
-                                <strong>Specialization:</strong> <span>{currentUser?.specialization || "Vedic Pooja"}</span>
+                                <strong>Specialization:</strong> <span>{currentUser?.specialization || "Horoscope Reading"}</span>
                                 <strong>Experience:</strong> <span>{currentUser?.experience || "15 Years"}</span>
                                 <strong>Status:</strong> <span style={{ color: "var(--success)", fontWeight: "700" }}>Verified & Active</span>
                               </div>
@@ -5344,7 +5695,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                   <div className="bg-drift-pattern" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}></div>
                   <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center", position: "relative", zIndex: 2, padding: "20px" }}>
                     <img 
-                      src="/devsetu_dark_logo.png"
+                      src="/devsetu_dark_circular_logo.png"
                       alt="DevSetu Logo" 
                       style={{ maxWidth: "160px", height: "auto", objectFit: "contain" }}
                     />
@@ -5536,7 +5887,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                     <div className="admin-drawer-header">
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <img 
-                          src={theme === "light" ? "/devsetu_light_logo.png" : "/devsetu_dark_logo.png"}
+                          src={theme === "light" ? "/devsetu_light_logo.png" : "/devsetu_dark_circular_logo.png"}
                           alt="DevSetu Logo" 
                           style={{ height: "26px", width: "auto" }}
                         />
@@ -5683,7 +6034,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                     <img 
                       src={theme === "light" 
                         ? "/devsetu_light_logo.png" 
-                        : "/devsetu_dark_logo.png"}
+                        : "/devsetu_dark_circular_logo.png"}
                       alt="DevSetu Logo" 
                       style={{ height: "28px", width: "auto" }}
                     />
@@ -5742,7 +6093,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                 <img 
                   src={theme === "light" 
                     ? "/devsetu_light_logo.png" 
-                    : "/devsetu_dark_logo.png"}
+                    : "/devsetu_dark_circular_logo.png"}
                   alt="DevSetu Logo" 
                   style={{ width: "100%", height: "auto", objectFit: "contain", maxHeight: "40px" }}
                 />
@@ -7157,79 +7508,710 @@ Please confirm manually and send my Login PIN. Thank you.`}
 
               {/* POOJA CATALOG MANAGEMENT */}
               {adminTab === "pooja-catalog" && (
-                <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+                <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                  {/* Page Header Bar */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", backgroundColor: "var(--card-bg)", padding: "20px 24px", borderRadius: "16px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>
                     <div>
-                      <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "var(--primary-brown)", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "var(--primary-brown)", display: "flex", alignItems: "center", gap: "10px", fontSize: "18px" }}>
                         🪔 Pooja Services Catalog Management
                       </h3>
-                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
-                        Create or delete Pooja services. All active Poojas listed here are instantly available to astrologers in the Pooja Marketplace.
+                      <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
+                        Create or delete Pooja services & categories. All active Poojas listed here are instantly available to astrologers in the Pooja Marketplace.
                       </p>
                     </div>
-                    <button 
-                      onClick={() => setShowAddPoojaModal(true)}
-                      className="btn-primary"
-                      style={{ padding: "10px 18px", fontSize: "12px", display: "flex", alignItems: "center", gap: "8px", fontWeight: "700", boxShadow: "0 4px 12px rgba(212,175,55,0.3)" }}
-                    >
-                      ➕ Add New Pooja Service
-                    </button>
+                    
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                      <button 
+                        onClick={() => {
+                          setNewPoojaForm(prev => ({ ...prev, category: poojaCategories[0] || "Vedic Rituals" }));
+                          setShowAddPoojaModal(true);
+                        }}
+                        className="btn-primary"
+                        style={{ padding: "10px 18px", fontSize: "12px", display: "flex", alignItems: "center", gap: "8px", fontWeight: "700", boxShadow: "0 4px 12px rgba(212,175,55,0.3)" }}
+                      >
+                        ➕ Add New Pooja Service
+                      </button>
+
+                      <button 
+                        onClick={() => setShowAddCategoryModal(true)}
+                        style={{ padding: "10px 18px", fontSize: "12px", backgroundColor: "#fff6e9", border: "1.5px solid var(--temple-gold)", color: "#5B0F0F", borderRadius: "24px", fontWeight: "800", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
+                      >
+                        📁 Add New Category
+                      </button>
+
+                      <button 
+                        onClick={() => setShowManageCategoriesModal(true)}
+                        style={{ padding: "10px 16px", fontSize: "12px", backgroundColor: "var(--warm-cream-darker)", border: "1px solid var(--border-color)", color: "var(--text-main)", borderRadius: "24px", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
+                      >
+                        ⚙️ Manage Categories ({poojaCategories.length})
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Pooja Services Grid */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
-                    {poojaServices.map(service => {
-                      const title = service.titleEN || service.title;
-                      const price = service.startingPrice || 0;
-                      const pkgs = service.packages || [];
-
+                  {/* Category Filter Tabs */}
+                  <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "4px" }}>
+                    <button
+                      onClick={() => setSelectedCatalogCategory("all")}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "20px",
+                        border: selectedCatalogCategory === "all" ? "2px solid var(--temple-gold)" : "1px solid var(--border-color)",
+                        backgroundColor: selectedCatalogCategory === "all" ? "var(--primary-brown)" : "var(--card-bg)",
+                        color: selectedCatalogCategory === "all" ? "#FFF" : "var(--text-main)",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      All Categories ({poojaServices.length})
+                    </button>
+                    {poojaCategories.map(cat => {
+                      const catCount = poojaServices.filter(s => s.category === cat).length;
+                      const isSel = selectedCatalogCategory === cat;
                       return (
-                        <div key={service.id} className="premium-card" style={{ padding: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", overflow: "hidden", borderRadius: "16px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>
-                          <div className={`service-card-image ${service.pattern || "pattern-shiva"}`} style={{ height: "90px", padding: "12px", position: "relative" }}>
-                            <div className="service-card-title" style={{ fontSize: "15px", fontWeight: "800", textShadow: "0 2px 4px rgba(0,0,0,0.6)" }}>
-                              {title}
-                            </div>
-                            <span style={{ position: "absolute", top: "10px", right: "10px", backgroundColor: "rgba(0,0,0,0.6)", color: "var(--temple-gold)", fontSize: "10px", padding: "3px 8px", borderRadius: "12px", fontWeight: "700" }}>
-                              {service.category || "Vedic Rituals"}
-                            </span>
-                          </div>
-
-                          <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
-                            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: "1.4" }}>
-                              {service.descriptionEN || service.descriptionHI || "Sacred Vedic ritual to promote health, prosperity, and peace."}
-                            </p>
-
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", backgroundColor: "rgba(212,175,55,0.06)", padding: "8px 12px", borderRadius: "8px", border: "1px dashed var(--border-color)" }}>
-                              <span style={{ color: "var(--text-muted)", fontWeight: "600" }}>Starting Price:</span>
-                              <strong style={{ color: "var(--orange-accent)", fontSize: "14px" }}>₹{price.toLocaleString()}</strong>
-                            </div>
-
-                            <div style={{ fontSize: "11px" }}>
-                              <strong style={{ color: "var(--primary-brown)", fontSize: "11px" }}>Configured Packages ({pkgs.length}):</strong>
-                              <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", color: "var(--text-muted)", fontSize: "10px" }}>
-                                {pkgs.map((pkg, idx) => (
-                                  <li key={idx}>
-                                    {(pkg.name?.en || pkg.name || "Package")} — <strong>₹{pkg.price?.toLocaleString()}</strong> (Fee: ₹{pkg.astroFee})
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-
-                          <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-color)", backgroundColor: "var(--warm-cream-darker)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>ID: {service.id}</span>
-                            <button 
-                              onClick={() => handleDeletePooja(service.id, title)}
-                              className="btn-primary"
-                              style={{ padding: "6px 12px", fontSize: "11px", backgroundColor: "var(--error)", borderColor: "var(--error)", color: "#fff", display: "flex", alignItems: "center", gap: "4px", fontWeight: "700" }}
-                            >
-                              🗑️ Delete Pooja
-                            </button>
-                          </div>
-                        </div>
+                        <button
+                          key={cat}
+                          onClick={() => setSelectedCatalogCategory(cat)}
+                          style={{
+                            padding: "8px 16px",
+                            borderRadius: "20px",
+                            border: isSel ? "2px solid var(--temple-gold)" : "1px solid var(--border-color)",
+                            backgroundColor: isSel ? "var(--primary-brown)" : "var(--card-bg)",
+                            color: isSel ? "#FFF" : "var(--text-main)",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px"
+                          }}
+                        >
+                          📁 {cat} <span style={{ opacity: 0.85, fontSize: "11px", backgroundColor: isSel ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.06)", padding: "2px 6px", borderRadius: "10px" }}>{catCount}</span>
+                        </button>
                       );
                     })}
                   </div>
+
+                  {/* Category Group Sections */}
+                  {(selectedCatalogCategory === "all" ? poojaCategories : [selectedCatalogCategory]).map(catName => {
+                    const catPoojas = poojaServices.filter(s => s.category === catName);
+
+                    return (
+                      <div key={catName} style={{ display: "flex", flexDirection: "column", gap: "14px", backgroundColor: "var(--card-bg)", padding: "20px", borderRadius: "16px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>
+                        {/* Category Section Header */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--border-color)", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <h4 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "var(--primary-brown)", fontSize: "16px", fontWeight: "800" }}>
+                              📂 {catName}
+                            </h4>
+                            <span style={{ backgroundColor: "#FFF6E9", border: "1px solid #D4AF37", color: "#5B0F0F", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "800" }}>
+                              {catPoojas.length} {catPoojas.length === 1 ? "Pooja" : "Poojas"}
+                            </span>
+                          </div>
+
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            <button
+                              onClick={() => {
+                                setNewPoojaForm(prev => ({ ...prev, category: catName }));
+                                setShowAddPoojaModal(true);
+                              }}
+                              style={{ padding: "6px 14px", fontSize: "11px", backgroundColor: "var(--primary-brown)", color: "#FFF", border: "none", borderRadius: "18px", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                            >
+                              ➕ Add Pooja to {catName}
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteCategory(catName)}
+                              title="Remove Category"
+                              style={{ padding: "6px 12px", fontSize: "11px", backgroundColor: "rgba(198,40,40,0.1)", border: "1px solid var(--error)", color: "var(--error)", borderRadius: "18px", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                            >
+                              🗑️ Remove Category
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Cards Grid under this Category */}
+                        {catPoojas.length === 0 ? (
+                          <div style={{ padding: "30px", textAlign: "center", backgroundColor: "var(--warm-cream-darker)", borderRadius: "12px", border: "1px dashed var(--border-color)", color: "var(--text-muted)" }}>
+                            <p style={{ margin: "0 0 10px 0", fontSize: "13px" }}>No Pooja services listed under <strong>{catName}</strong> yet.</p>
+                            <button
+                              onClick={() => {
+                                setNewPoojaForm(prev => ({ ...prev, category: catName }));
+                                setShowAddPoojaModal(true);
+                              }}
+                              className="btn-primary"
+                              style={{ padding: "8px 16px", fontSize: "11px", fontWeight: "700" }}
+                            >
+                              ➕ Add First Pooja to {catName}
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
+                            {catPoojas.map(service => {
+                              const title = service.titleEN || service.title;
+                              const price = service.startingPrice || 0;
+                              const pkgs = service.packages || [];
+
+                              return (
+                                <div key={service.id} className="premium-card" style={{ padding: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", overflow: "hidden", borderRadius: "16px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>
+                                  <div className={`service-card-image ${service.pattern || "pattern-shiva"}`} style={{ height: "90px", padding: "12px", position: "relative" }}>
+                                    <div className="service-card-title" style={{ fontSize: "15px", fontWeight: "800", textShadow: "0 2px 4px rgba(0,0,0,0.6)" }}>
+                                      {title}
+                                    </div>
+                                    <span style={{ position: "absolute", top: "10px", right: "10px", backgroundColor: "rgba(0,0,0,0.6)", color: "var(--temple-gold)", fontSize: "10px", padding: "3px 8px", borderRadius: "12px", fontWeight: "700" }}>
+                                      {service.category || catName}
+                                    </span>
+                                  </div>
+
+                                  <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
+                                    <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: "1.4" }}>
+                                      {service.descriptionEN || service.descriptionHI || "Sacred Vedic ritual to promote health, prosperity, and peace."}
+                                    </p>
+
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", backgroundColor: "rgba(212,175,55,0.06)", padding: "8px 12px", borderRadius: "8px", border: "1px dashed var(--border-color)" }}>
+                                      <span style={{ color: "var(--text-muted)", fontWeight: "600" }}>Starting Price:</span>
+                                      <strong style={{ color: "var(--orange-accent)", fontSize: "14px" }}>₹{price.toLocaleString()}</strong>
+                                    </div>
+
+                                    <div style={{ fontSize: "11px" }}>
+                                      <strong style={{ color: "var(--primary-brown)", fontSize: "11px" }}>Configured Packages ({pkgs.length}):</strong>
+                                      <ul style={{ margin: "4px 0 0 0", paddingLeft: "16px", color: "var(--text-muted)", fontSize: "10px" }}>
+                                        {pkgs.map((pkg, idx) => (
+                                          <li key={idx}>
+                                            {(pkg.name?.en || pkg.name || "Package")} — <strong>₹{pkg.price?.toLocaleString()}</strong> (Fee: ₹{pkg.astroFee})
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-color)", backgroundColor: "var(--warm-cream-darker)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px" }}>
+                                    <button
+                                      onClick={() => setSelectedAdminViewPackagesService(service)}
+                                      style={{ padding: "6px 10px", fontSize: "11px", backgroundColor: "#fff6e9", border: "1.5px solid var(--temple-gold)", color: "#5B0F0F", borderRadius: "14px", fontWeight: "800", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                                    >
+                                      📦 Packages ({pkgs.length})
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleOpenEditPooja(service)}
+                                      style={{ padding: "6px 10px", fontSize: "11px", backgroundColor: "var(--primary-brown)", border: "none", color: "#FFF", borderRadius: "14px", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                                    >
+                                      ✏️ Edit
+                                    </button>
+
+                                    <button 
+                                      onClick={() => handleDeletePooja(service.id, title)}
+                                      className="btn-primary"
+                                      style={{ padding: "6px 10px", fontSize: "11px", backgroundColor: "var(--error)", borderColor: "var(--error)", color: "#fff", display: "flex", alignItems: "center", gap: "4px", fontWeight: "700" }}
+                                    >
+                                      🗑️ Delete
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* MODAL: EDIT POOJA & PACKAGES */}
+                  {editingPoojaService && editPoojaForm && (
+                    <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10005, padding: "16px" }}>
+                      <div style={{ width: "100%", maxWidth: "680px", maxHeight: "90vh", overflowY: "auto", borderRadius: "20px", padding: "28px", backgroundColor: "#FFF6E9", color: "#2B1B12", border: "3px solid var(--temple-gold)", boxShadow: "0 25px 60px rgba(0,0,0,0.7)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--temple-gold)", paddingBottom: "14px", marginBottom: "18px" }}>
+                          <div>
+                            <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "#2B1B12", fontSize: "18px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+                              ✏️ Edit Pooja Service & Packages
+                            </h3>
+                            <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", display: "block" }}>
+                              Modify service details, multi-lingual titles, descriptions, benefits & packages.
+                            </span>
+                          </div>
+                          <button onClick={() => { setEditingPoojaService(null); setEditPoojaForm(null); }} style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "#2B1B12", fontWeight: "800" }}>✕</button>
+                        </div>
+
+                        <form onSubmit={handleSaveEditedPooja} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                          {/* Title English */}
+                          <div className="form-group">
+                            <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Pooja Title (English) *</label>
+                            <input 
+                              type="text" 
+                              required 
+                              className="form-input" 
+                              style={{ backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "14px", fontWeight: "600" }}
+                              value={editPoojaForm.titleEN}
+                              onChange={(e) => setEditPoojaForm({ ...editPoojaForm, titleEN: e.target.value })}
+                            />
+                          </div>
+
+                          {/* Title Hindi & Marathi */}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                            <div className="form-group">
+                              <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Pooja Title (Hindi)</label>
+                              <input 
+                                type="text" 
+                                className="form-input" 
+                                style={{ backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: "600" }}
+                                value={editPoojaForm.titleHI}
+                                onChange={(e) => setEditPoojaForm({ ...editPoojaForm, titleHI: e.target.value })}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Pooja Title (Marathi)</label>
+                              <input 
+                                type="text" 
+                                className="form-input" 
+                                style={{ backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: "600" }}
+                                value={editPoojaForm.titleMR}
+                                onChange={(e) => setEditPoojaForm({ ...editPoojaForm, titleMR: e.target.value })}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Price & Category */}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                            <div className="form-group">
+                              <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Starting Price (₹) *</label>
+                              <input 
+                                type="number" 
+                                required 
+                                className="form-input" 
+                                style={{ backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "14px", fontWeight: "600" }}
+                                value={editPoojaForm.startingPrice}
+                                onChange={(e) => setEditPoojaForm({ ...editPoojaForm, startingPrice: e.target.value })}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Category</label>
+                              <select 
+                                className="form-select"
+                                style={{ backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: "600" }}
+                                value={editPoojaForm.category}
+                                onChange={(e) => setEditPoojaForm({ ...editPoojaForm, category: e.target.value })}
+                              >
+                                {poojaCategories.map(cat => (
+                                  <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Card Pattern Style */}
+                          <div className="form-group">
+                            <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Visual Pattern Banner</label>
+                            <select 
+                              className="form-select"
+                              style={{ backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: "600" }}
+                              value={editPoojaForm.pattern}
+                              onChange={(e) => setEditPoojaForm({ ...editPoojaForm, pattern: e.target.value })}
+                            >
+                              <option value="pattern-shiva">🔱 Shiva Sacred Om Banner</option>
+                              <option value="pattern-om">🕉️ Golden Om Chanting Banner</option>
+                              <option value="pattern-fire">🔥 Sacred Yajna Fire Banner</option>
+                              <option value="pattern-gold">✨ Temple Gold Banner</option>
+                            </select>
+                          </div>
+
+                          {/* Description English */}
+                          <div className="form-group">
+                            <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Description (English)</label>
+                            <textarea 
+                              rows="2" 
+                              className="form-input"
+                              style={{ resize: "none", backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: "600" }}
+                              value={editPoojaForm.descriptionEN}
+                              onChange={(e) => setEditPoojaForm({ ...editPoojaForm, descriptionEN: e.target.value })}
+                            />
+                          </div>
+
+                          {/* Description Hindi & Marathi */}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                            <div className="form-group">
+                              <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Description (Hindi)</label>
+                              <textarea 
+                                rows="2" 
+                                className="form-input"
+                                style={{ resize: "none", backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "12px", fontWeight: "600" }}
+                                value={editPoojaForm.descriptionHI}
+                                onChange={(e) => setEditPoojaForm({ ...editPoojaForm, descriptionHI: e.target.value })}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Description (Marathi)</label>
+                              <textarea 
+                                rows="2" 
+                                className="form-input"
+                                style={{ resize: "none", backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "12px", fontWeight: "600" }}
+                                value={editPoojaForm.descriptionMR}
+                                onChange={(e) => setEditPoojaForm({ ...editPoojaForm, descriptionMR: e.target.value })}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Benefits (Line separated) */}
+                          <div className="form-group">
+                            <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Key Spiritual Benefits (English - 1 per line)</label>
+                            <textarea 
+                              rows="3" 
+                              placeholder="e.g. Restores mental peace&#10;Protects against mishaps&#10;Brings positive energy" 
+                              className="form-input"
+                              style={{ resize: "none", backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "12px", fontWeight: "600" }}
+                              value={editPoojaForm.benefitsEN}
+                              onChange={(e) => setEditPoojaForm({ ...editPoojaForm, benefitsEN: e.target.value })}
+                            />
+                          </div>
+
+                          {/* PACKAGES EDITING SECTION */}
+                          <div style={{ borderTop: "2px dashed var(--temple-gold)", paddingTop: "16px", marginTop: "10px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                              <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "800", color: "#5B0F0F", display: "flex", alignItems: "center", gap: "6px" }}>
+                                📦 Configured Packages ({editPoojaForm.packages.length})
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newPkg = {
+                                    id: "pkg-" + Date.now(),
+                                    nameEN: "New Package Variant",
+                                    nameHI: "नया पैकेज",
+                                    nameMR: "नवीन पॅकेज",
+                                    price: editPoojaForm.startingPrice || 5000,
+                                    astroFee: Math.round((editPoojaForm.startingPrice || 5000) * 0.1),
+                                    durationEN: "3 Hours",
+                                    detailsEN: "Sacred Vedic ritual setup and priest samagri."
+                                  };
+                                  setEditPoojaForm(prev => ({ ...prev, packages: [...prev.packages, newPkg] }));
+                                }}
+                                style={{ padding: "6px 14px", fontSize: "11px", backgroundColor: "#5B0F0F", color: "#FFF6E9", border: "none", borderRadius: "16px", fontWeight: "800", cursor: "pointer" }}
+                              >
+                                ➕ Add Package Variant
+                              </button>
+                            </div>
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                              {editPoojaForm.packages.map((pkg, pIdx) => (
+                                <div key={pkg.id || pIdx} style={{ backgroundColor: "#FFFFFF", padding: "16px", borderRadius: "14px", border: "1.5px solid #E8DFD3", display: "flex", flexDirection: "column", gap: "12px" }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontWeight: "800", fontSize: "12px", color: "#5B0F0F" }}>Package #{pIdx + 1}</span>
+                                    {editPoojaForm.packages.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditPoojaForm(prev => ({ ...prev, packages: prev.packages.filter((_, idx) => idx !== pIdx) }));
+                                        }}
+                                        style={{ padding: "4px 10px", fontSize: "10px", backgroundColor: "rgba(198,40,40,0.1)", border: "1px solid var(--error)", color: "var(--error)", borderRadius: "12px", fontWeight: "700", cursor: "pointer" }}
+                                      >
+                                        🗑️ Remove Package
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                    <div className="form-group">
+                                      <label style={{ fontSize: "11px", fontWeight: "700", color: "#2B1B12", display: "block", marginBottom: "4px" }}>Package Name (EN) *</label>
+                                      <input 
+                                        type="text" 
+                                        required 
+                                        className="form-input" 
+                                        style={{ backgroundColor: "#FFF6E9", color: "#2B1B12", border: "1px solid var(--temple-gold)", borderRadius: "8px", padding: "8px 10px", fontSize: "12px", fontWeight: "600" }}
+                                        value={pkg.nameEN}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setEditPoojaForm(prev => {
+                                            const pkgs = [...prev.packages];
+                                            pkgs[pIdx].nameEN = val;
+                                            return { ...prev, packages: pkgs };
+                                          });
+                                        }}
+                                      />
+                                    </div>
+
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                                      <div className="form-group">
+                                        <label style={{ fontSize: "11px", fontWeight: "700", color: "#2B1B12", display: "block", marginBottom: "4px" }}>Price (₹) *</label>
+                                        <input 
+                                          type="number" 
+                                          required 
+                                          className="form-input" 
+                                          style={{ backgroundColor: "#FFF6E9", color: "#2B1B12", border: "1px solid var(--temple-gold)", borderRadius: "8px", padding: "8px 10px", fontSize: "12px", fontWeight: "600" }}
+                                          value={pkg.price}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setEditPoojaForm(prev => {
+                                              const pkgs = [...prev.packages];
+                                              pkgs[pIdx].price = val;
+                                              return { ...prev, packages: pkgs };
+                                            });
+                                          }}
+                                        />
+                                      </div>
+                                      <div className="form-group">
+                                        <label style={{ fontSize: "11px", fontWeight: "700", color: "#2B1B12", display: "block", marginBottom: "4px" }}>Astro Fee (₹) *</label>
+                                        <input 
+                                          type="number" 
+                                          required 
+                                          className="form-input" 
+                                          style={{ backgroundColor: "#FFF6E9", color: "#2B1B12", border: "1px solid var(--temple-gold)", borderRadius: "8px", padding: "8px 10px", fontSize: "12px", fontWeight: "600" }}
+                                          value={pkg.astroFee}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setEditPoojaForm(prev => {
+                                              const pkgs = [...prev.packages];
+                                              pkgs[pIdx].astroFee = val;
+                                              return { ...prev, packages: pkgs };
+                                            });
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                    <div className="form-group">
+                                      <label style={{ fontSize: "11px", fontWeight: "700", color: "#2B1B12", display: "block", marginBottom: "4px" }}>Duration (EN)</label>
+                                      <input 
+                                        type="text" 
+                                        className="form-input" 
+                                        style={{ backgroundColor: "#FFF6E9", color: "#2B1B12", border: "1px solid var(--temple-gold)", borderRadius: "8px", padding: "8px 10px", fontSize: "12px", fontWeight: "600" }}
+                                        value={pkg.durationEN}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setEditPoojaForm(prev => {
+                                            const pkgs = [...prev.packages];
+                                            pkgs[pIdx].durationEN = val;
+                                            return { ...prev, packages: pkgs };
+                                          });
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="form-group">
+                                      <label style={{ fontSize: "11px", fontWeight: "700", color: "#2B1B12", display: "block", marginBottom: "4px" }}>Package Details (EN)</label>
+                                      <input 
+                                        type="text" 
+                                        className="form-input" 
+                                        style={{ backgroundColor: "#FFF6E9", color: "#2B1B12", border: "1px solid var(--temple-gold)", borderRadius: "8px", padding: "8px 10px", fontSize: "12px", fontWeight: "600" }}
+                                        value={pkg.detailsEN}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setEditPoojaForm(prev => {
+                                            const pkgs = [...prev.packages];
+                                            pkgs[pIdx].detailsEN = val;
+                                            return { ...prev, packages: pkgs };
+                                          });
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "16px", borderTop: "2px dashed var(--temple-gold)", paddingTop: "14px" }}>
+                            <button 
+                              type="button" 
+                              onClick={() => { setEditingPoojaService(null); setEditPoojaForm(null); }}
+                              style={{ padding: "10px 18px", borderRadius: "20px", border: "1px solid var(--border-color)", backgroundColor: "#FFFFFF", color: "#2B1B12", fontWeight: "700", cursor: "pointer" }}
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit"
+                              className="btn-primary"
+                              style={{ padding: "10px 24px", fontSize: "13px", fontWeight: "800" }}
+                            >
+                              Save All Changes
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MODAL: ADMIN VIEW PACKAGES */}
+                  {selectedAdminViewPackagesService && (
+                    <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10005, padding: "16px" }}>
+                      <div style={{ width: "100%", maxWidth: "580px", maxHeight: "85vh", overflowY: "auto", borderRadius: "20px", padding: "28px", backgroundColor: "#FFF6E9", color: "#2B1B12", border: "3px solid var(--temple-gold)", boxShadow: "0 25px 60px rgba(0,0,0,0.7)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--temple-gold)", paddingBottom: "12px", marginBottom: "18px" }}>
+                          <div>
+                            <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "#2B1B12", fontSize: "18px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+                              📦 {selectedAdminViewPackagesService.titleEN || selectedAdminViewPackagesService.title} — Packages
+                            </h3>
+                            <span style={{ backgroundColor: "#5B0F0F", color: "#FFF6E9", padding: "2px 8px", borderRadius: "10px", fontSize: "10px", fontWeight: "800", marginTop: "4px", display: "inline-block" }}>
+                              Category: {selectedAdminViewPackagesService.category || "Vedic Rituals"}
+                            </span>
+                          </div>
+                          <button onClick={() => setSelectedAdminViewPackagesService(null)} style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "#2B1B12", fontWeight: "800" }}>✕</button>
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "20px" }}>
+                          {(selectedAdminViewPackagesService.packages || []).map((pkg, idx) => {
+                            const nameEN = pkg.name?.en || pkg.name || `Package ${idx + 1}`;
+                            const nameHI = pkg.name?.hi || nameEN;
+                            const nameMR = pkg.name?.mr || nameEN;
+                            const detailsEN = pkg.details?.en || pkg.details || "Full sacred Vedic ritual setup and priest samagri.";
+                            const durEN = pkg.duration?.en || pkg.duration || "3 Hours";
+
+                            return (
+                              <div key={pkg.id || idx} style={{ backgroundColor: "#FFFFFF", padding: "16px", borderRadius: "14px", border: "1.5px solid #E8DFD3", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                  <div>
+                                    <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "800", color: "#5B0F0F" }}>
+                                      {nameEN}
+                                    </h4>
+                                    {(nameHI !== nameEN || nameMR !== nameEN) && (
+                                      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                                        {nameHI} • {nameMR}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div style={{ textAlign: "right" }}>
+                                    <div style={{ fontSize: "15px", fontWeight: "800", color: "var(--orange-accent)" }}>
+                                      ₹{(pkg.price || 0).toLocaleString()}
+                                    </div>
+                                    <div style={{ fontSize: "10px", color: "var(--success)", fontWeight: "700" }}>
+                                      Commission Fee: ₹{pkg.astroFee || 0}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <p style={{ margin: 0, fontSize: "11px", color: "#4A3B32", lineHeight: "1.4", backgroundColor: "#FFF6E9", padding: "10px", borderRadius: "8px", border: "1px dashed #D4AF37" }}>
+                                  {detailsEN}
+                                </p>
+
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", color: "var(--text-muted)" }}>
+                                  <span>⏱️ Ritual Duration: <strong>{durEN}</strong></span>
+                                  <span style={{ fontSize: "10px", color: "#888" }}>ID: {pkg.id}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                          <button 
+                            type="button" 
+                            onClick={() => setSelectedAdminViewPackagesService(null)}
+                            className="btn-primary"
+                            style={{ padding: "10px 24px", fontSize: "13px", fontWeight: "800" }}
+                          >
+                            Close Details
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MODAL: ADD NEW CATEGORY */}
+                  {showAddCategoryModal && (
+                    <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10005, padding: "16px" }}>
+                      <div style={{ width: "100%", maxWidth: "460px", borderRadius: "20px", padding: "28px", backgroundColor: "#FFF6E9", color: "#2B1B12", border: "3px solid var(--temple-gold)", boxShadow: "0 25px 60px rgba(0,0,0,0.7)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--temple-gold)", paddingBottom: "12px", marginBottom: "18px" }}>
+                          <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "#2B1B12", fontSize: "18px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+                            📁 Add New Pooja Category
+                          </h3>
+                          <button onClick={() => setShowAddCategoryModal(false)} style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "#2B1B12", fontWeight: "800" }}>✕</button>
+                        </div>
+
+                        <form onSubmit={(e) => { e.preventDefault(); handleAddCategory(newCategoryInput); }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                          <div className="form-group">
+                            <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Category Name *</label>
+                            <input 
+                              type="text" 
+                              required 
+                              placeholder="e.g. Navgrah Shanti / Anushthan" 
+                              className="form-input" 
+                              style={{ backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "12px 14px", fontSize: "14px", fontWeight: "600" }}
+                              value={newCategoryInput}
+                              onChange={(e) => setNewCategoryInput(e.target.value)}
+                              autoFocus
+                            />
+                          </div>
+
+                          <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "10px" }}>
+                            <button 
+                              type="button" 
+                              onClick={() => setShowAddCategoryModal(false)}
+                              style={{ padding: "10px 18px", borderRadius: "20px", border: "1px solid var(--border-color)", backgroundColor: "#FFFFFF", color: "#2B1B12", fontWeight: "700", cursor: "pointer" }}
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit"
+                              className="btn-primary"
+                              style={{ padding: "10px 22px", fontSize: "13px", fontWeight: "800" }}
+                            >
+                              Create Category
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MODAL: MANAGE CATEGORIES */}
+                  {showManageCategoriesModal && (
+                    <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10005, padding: "16px" }}>
+                      <div style={{ width: "100%", maxWidth: "520px", maxHeight: "85vh", overflowY: "auto", borderRadius: "20px", padding: "28px", backgroundColor: "#FFF6E9", color: "#2B1B12", border: "3px solid var(--temple-gold)", boxShadow: "0 25px 60px rgba(0,0,0,0.7)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--temple-gold)", paddingBottom: "12px", marginBottom: "18px" }}>
+                          <h3 style={{ fontFamily: "var(--font-heading)", margin: 0, color: "#2B1B12", fontSize: "18px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+                            ⚙️ Manage Pooja Categories ({poojaCategories.length})
+                          </h3>
+                          <button onClick={() => setShowManageCategoriesModal(false)} style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "#2B1B12", fontWeight: "800" }}>✕</button>
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
+                          {poojaCategories.map(cat => {
+                            const count = poojaServices.filter(s => s.category === cat).length;
+                            return (
+                              <div key={cat} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#FFFFFF", padding: "12px 16px", borderRadius: "12px", border: "1.5px solid #E8DFD3" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                  <span style={{ fontWeight: "800", fontSize: "14px", color: "#2B1B12" }}>📁 {cat}</span>
+                                  <span style={{ backgroundColor: "#FFF6E9", border: "1px solid #D4AF37", color: "#5B0F0F", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "800" }}>
+                                    {count} {count === 1 ? "Pooja" : "Poojas"}
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => handleDeleteCategory(cat)}
+                                  style={{ padding: "6px 12px", fontSize: "11px", backgroundColor: "rgba(198,40,40,0.1)", border: "1px solid var(--error)", color: "var(--error)", borderRadius: "14px", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+                                >
+                                  🗑️ Remove
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div style={{ borderTop: "2px dashed var(--temple-gold)", paddingTop: "16px" }}>
+                          <h4 style={{ margin: "0 0 10px 0", fontSize: "13px", color: "#2B1B12", fontWeight: "800" }}>➕ Add Category Inline</h4>
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <input 
+                              type="text" 
+                              placeholder="New Category Name..." 
+                              className="form-input" 
+                              style={{ backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: "600", flex: 1 }}
+                              value={newCategoryInput}
+                              onChange={(e) => setNewCategoryInput(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleAddCategory(newCategoryInput)}
+                              className="btn-primary"
+                              style={{ padding: "10px 16px", fontSize: "12px", fontWeight: "800", whiteSpace: "nowrap" }}
+                            >
+                              Add Category
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* ADD NEW POOJA MODAL */}
                   {showAddPoojaModal && (
@@ -7295,18 +8277,32 @@ Please confirm manually and send my Login PIN. Thank you.`}
                               />
                             </div>
                             <div className="form-group">
-                              <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", marginBottom: "6px", display: "block" }}>Category</label>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                                <label className="form-label" style={{ color: "#2B1B12", fontWeight: "800", fontSize: "13px", margin: 0 }}>Category *</label>
+                                <button 
+                                  type="button"
+                                  onClick={() => setShowAddCategoryModal(true)}
+                                  style={{ background: "none", border: "none", color: "#5B0F0F", fontSize: "11px", fontWeight: "800", textDecoration: "underline", cursor: "pointer" }}
+                                >
+                                  + New Category
+                                </button>
+                              </div>
                               <select 
                                 className="form-select"
                                 style={{ backgroundColor: "#FFFFFF", color: "#2B1B12", border: "2px solid var(--temple-gold)", borderRadius: "10px", padding: "12px 14px", fontSize: "14px", fontWeight: "600" }}
                                 value={newPoojaForm.category}
-                                onChange={(e) => setNewPoojaForm({ ...newPoojaForm, category: e.target.value })}
+                                onChange={(e) => {
+                                  if (e.target.value === "__ADD_NEW__") {
+                                    setShowAddCategoryModal(true);
+                                  } else {
+                                    setNewPoojaForm({ ...newPoojaForm, category: e.target.value });
+                                  }
+                                }}
                               >
-                                <option value="Vedic Rituals">Vedic Rituals</option>
-                                <option value="Dosh Nivaran">Dosh Nivaran</option>
-                                <option value="Graha Shanti">Graha Shanti</option>
-                                <option value="Prosperity & Kuber">Prosperity & Kuber</option>
-                                <option value="Custom Special Ritual">Custom Special Ritual</option>
+                                {poojaCategories.map(cat => (
+                                  <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                                <option value="__ADD_NEW__">➕ Add New Category...</option>
                               </select>
                             </div>
                           </div>
@@ -9277,9 +10273,10 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "10px" }}>
                         <div className="form-group">
                           <label className="form-label" style={{ fontSize: "11px" }}>Specialization</label>
-                          <select name="editSpecialization" defaultValue={userToEdit.specialization || "Vedic Pooja"} className="form-select" style={{ padding: "8px 12px" }}>
-                            <option value="Vedic Pooja">Vedic Pooja</option>
+                          <select name="editSpecialization" defaultValue={userToEdit.specialization || "Horoscope Reading"} className="form-select" style={{ padding: "8px 12px" }}>
                             <option value="Horoscope Reading">Horoscope Reading</option>
+                            <option value="Tarot Astrology">Tarot Astrology</option>
+                            <option value="Face Reading / Physiognomy">Face Reading / Physiognomy</option>
                             <option value="Vastu Shastra">Vastu Shastra</option>
                             <option value="Numerology">Numerology</option>
                             <option value="Palmistry">Palmistry</option>

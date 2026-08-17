@@ -269,10 +269,11 @@ button, input, select, textarea {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   position: relative;
   min-height: 0;
   height: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .astro-portal-viewport {
@@ -294,7 +295,8 @@ button, input, select, textarea {
   gap: 16px;
   min-height: min-content;
   padding-bottom: 100px; /* Generous padding to ensure all expanded accordions and buttons are 100% visible above the bottom navbar */
-  overflow: visible; /* Single smooth scroll container! Eliminates nested scrolling traps */
+  overflow-y: auto; /* Smooth scroll for all pages and forms! */
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Phone Navigation Header */

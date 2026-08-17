@@ -60,6 +60,32 @@ export async function createService(req, res) {
   }
 }
 
+export async function updateService(req, res) {
+  const { id } = req.params;
+  const updatedData = req.body;
+
+  try {
+    const services = await dbService.getCollection('services') || [];
+    const index = services.findIndex(s => s.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: "Pooja Service not found." });
+    }
+
+    services[index] = {
+      ...services[index],
+      ...updatedData,
+      id
+    };
+
+    await dbService.saveCollection('services', services);
+    await logAuditEvent("admin", `Updated Pooja Service ID: ${id} (${updatedData.titleEN || services[index].titleEN})`);
+    res.json(services[index]);
+  } catch (err) {
+    console.error('[ServicesController] updateService error:', err);
+    res.status(500).json({ error: "Failed to update Pooja Service." });
+  }
+}
+
 export async function deleteService(req, res) {
   const { id } = req.params;
   try {
