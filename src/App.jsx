@@ -3086,7 +3086,7 @@ export default function App() {
                   ) : (
                       <>
                         <h3 style={{ fontSize: "16px", fontFamily: "var(--font-heading)", textAlign: "center", marginBottom: "16px" }}>Astrologer Registration</h3>
-                        <form onSubmit={handleSignUpSubmit} className="astro-signup-form-container" style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "6px" }}>
+                        <form onSubmit={handleSignUpSubmit} className="astro-signup-form-container">
                           <div className="astro-signup-grid">
                             <div className="minimal-input-wrapper">
                               <span className="minimal-input-icon">👤</span>
