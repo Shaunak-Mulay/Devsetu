@@ -2473,7 +2473,7 @@ export default function App() {
                 </div>
               ) : !isLoggedIn ? (
                 /* 0b. LOGIN SCREEN */
-                <div className="phone-screen-body fade-in" style={{ padding: "20px", minHeight: "100%", width: "100%", display: "flex", flexDirection: "column", overflowY: "auto", paddingBottom: "100px", WebkitOverflowScrolling: "touch" }}>
+                <div className="phone-screen-body fade-in" style={{ padding: "20px", minHeight: "100%", width: "100%", display: "flex", flexDirection: "column", overflow: "visible", paddingBottom: "120px" }}>
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginBottom: "32px", width: "100%" }}>
                     <select 
                       value={language}
