@@ -2509,46 +2509,75 @@ input:checked + .slider:before {
   }
 }
 
-/* Premium Card - Compact & Natural Height Wrap (Default for Profile, Welcome Header, Dashboard) */
-.premium-card {
-  background-color: var(--phone-card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--card-radius);
-  box-shadow: var(--shadow-md);
-  transition: var(--transition-smooth);
-  display: flex;
-  flex-direction: column;
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  box-sizing: border-box;
-}
-
-/* Astrologer Auth / Login / Registration Card ONLY */
-.auth-card {
-  min-height: 68vh !important;
-  min-height: 68dvh !important;
-}
-
+/* Responsive Astrologer Registration Form Grid */
 .astro-signup-form-container {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: 68vh !important;
-  max-height: 68dvh !important;
-  overflow-y: auto !important;
-  padding-right: 6px;
-  -webkit-overflow-scrolling: touch;
+  max-height: none !important;
+  overflow: visible !important;
   width: 100%;
-  box-sizing: border-box;
-  flex: 1;
 }
 
 .astro-signup-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   width: 100%;
+}
+
+/* Isolated Login Page Card & Internal Form Scrollbar */
+.auth-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.auth-page-card {
+  width: 100%;
+  max-width: 760px;
+  max-height: calc(100vh - 240px);
+  max-height: calc(100dvh - 240px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 1.5px solid var(--temple-gold) !important;
+  border-radius: var(--card-radius);
+  background-color: var(--phone-card-bg);
+}
+
+.auth-card-scroll-body {
+  flex: 1;
+  overflow-y: auto !important;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.auth-card-scroll-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.auth-card-scroll-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.auth-card-scroll-body::-webkit-scrollbar-thumb {
+  background: var(--temple-gold);
+  border-radius: 3px;
+}
+
+@media (min-width: 768px) {
+  .auth-page-card {
+    max-height: calc(100vh - 200px);
+    max-height: calc(100dvh - 200px);
+  }
 }
 
 
