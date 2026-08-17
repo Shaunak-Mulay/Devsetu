@@ -34,7 +34,9 @@ import {
   Phone,
   Mail,
   Trash2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { servicesData, translations, sampleScreenshots, mockAstrologers, SUPPORT_CONFIG } from "./data";
 import { paymentService } from "./services/PaymentService";
@@ -451,6 +453,8 @@ export default function App() {
   const [signupExperience, setSignupExperience] = useState("5 Years");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [showSignupPin, setShowSignupPin] = useState(false);
+  const [showSignupConfirmPin, setShowSignupConfirmPin] = useState(false);
   const [signupDistrict, setSignupDistrict] = useState("");
   const [signupSpecialization, setSignupSpecialization] = useState("Horoscope Reading");
 
@@ -2524,7 +2528,7 @@ export default function App() {
                     </p>
                   </div>
 
-                  <div className="premium-card" style={{ padding: "20px" }}>
+                  <div className="premium-card auth-card" style={{ padding: "20px" }}>
                     {forgotStep === 0 && (
                       <div style={{ 
                         display: "flex", 
@@ -2962,7 +2966,7 @@ export default function App() {
                             />
                           </div>
 
-                          <div className="minimal-input-wrapper">
+                          <div className="minimal-input-wrapper" style={{ position: "relative" }}>
                             <span className="minimal-input-icon">🔒</span>
                             <input 
                               type={loginShowPassword ? "text" : "password"} 
@@ -2975,14 +2979,15 @@ export default function App() {
                               className="minimal-input"
                               value={loginPassword}
                               onChange={(e) => setLoginPassword(e.target.value.replace(/[^0-9]/g, ''))}
-                              style={{ paddingRight: "36px" }}
+                              style={{ paddingRight: "40px" }}
                             />
                             <button 
                               type="button"
                               onClick={() => setLoginShowPassword(!loginShowPassword)}
-                              style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "14px", color: "var(--text-muted)" }}
+                              style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                              title={loginShowPassword ? "Hide PIN" : "Show PIN"}
                             >
-                              {loginShowPassword ? "👁️" : "🙈"}
+                              {loginShowPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                           </div>
 
@@ -3200,10 +3205,10 @@ export default function App() {
                               </select>
                             </div>
 
-                            <div className="minimal-input-wrapper">
+                            <div className="minimal-input-wrapper" style={{ position: "relative" }}>
                               <span className="minimal-input-icon">🔒</span>
                               <input 
-                                type="password" 
+                                type={showSignupPin ? "text" : "password"} 
                                 required
                                 autoComplete="new-password"
                                 inputMode="numeric"
@@ -3211,15 +3216,24 @@ export default function App() {
                                 maxLength={6}
                                 placeholder="6-Digit Login PIN" 
                                 className="minimal-input"
+                                style={{ paddingRight: "40px" }}
                                 value={signupPassword}
                                 onChange={(e) => setSignupPassword(e.target.value.replace(/[^0-9]/g, ''))}
                               />
+                              <button 
+                                type="button"
+                                onClick={() => setShowSignupPin(!showSignupPin)}
+                                style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                                title={showSignupPin ? "Hide PIN" : "Show PIN"}
+                              >
+                                {showSignupPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                              </button>
                             </div>
 
-                            <div className="minimal-input-wrapper">
+                            <div className="minimal-input-wrapper" style={{ position: "relative" }}>
                               <span className="minimal-input-icon">🔒</span>
                               <input 
-                                type="password" 
+                                type={showSignupConfirmPin ? "text" : "password"} 
                                 required
                                 autoComplete="new-password"
                                 inputMode="numeric"
@@ -3227,9 +3241,18 @@ export default function App() {
                                 maxLength={6}
                                 placeholder="Confirm 6-Digit PIN" 
                                 className="minimal-input"
+                                style={{ paddingRight: "40px" }}
                                 value={signupConfirmPassword}
                                 onChange={(e) => setSignupConfirmPassword(e.target.value.replace(/[^0-9]/g, ''))}
                               />
+                              <button 
+                                type="button"
+                                onClick={() => setShowSignupConfirmPin(!showSignupConfirmPin)}
+                                style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                                title={showSignupConfirmPin ? "Hide PIN" : "Show PIN"}
+                              >
+                                {showSignupConfirmPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                              </button>
                             </div>
                           </div>
 
