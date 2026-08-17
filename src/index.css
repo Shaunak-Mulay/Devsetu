@@ -294,9 +294,8 @@ button, input, select, textarea {
   flex-direction: column;
   gap: 16px;
   min-height: min-content;
-  padding-bottom: 100px; /* Generous padding to ensure all expanded accordions and buttons are 100% visible above the bottom navbar */
-  overflow-y: auto; /* Smooth scroll for all pages and forms! */
-  -webkit-overflow-scrolling: touch;
+  padding-bottom: 100px; /* Generous padding to ensure all content is 100% visible */
+  overflow: visible; /* Static card section - whole page scrolls smoothly together! */
 }
 
 /* Phone Navigation Header */
