@@ -3,6 +3,7 @@ import { notificationService } from '../notifications/notificationService.js';
 import { logAuditEvent } from '../services/auditService.js';
 import { sheetsService } from '../services/sheetsService.js';
 import { sanitizeUser, sanitizeUsers } from '../utils/serializers.js';
+import { supabaseAdmin, isSupabaseConfigured } from '../config/supabase.js';
 
 export async function getUsers(req, res) {
   try {
@@ -143,11 +144,81 @@ export async function deleteUser(req, res) {
       return res.status(404).json({ error: "User not found." });
     }
 
+    // Delete user from Supabase Auth if Supabase is configured
+    if (isSupabaseConfigured()) {
+      try {
+        let authUserId = userToDelete.authUserId || userToDelete.auth_user_id;
+
+        // 1. If authUserId is not directly stored on user object, check public.profiles table
+        if (!authUserId) {
+          const targetEmail = userToDelete.email ? userToDelete.email.toLowerCase() : null;
+          const targetPhone = userToDelete.phone || userToDelete.mobile;
+          const targetProfileId = userToDelete.profileId ? userToDelete.profileId.toLowerCase() : null;
+
+          const filterConditions = [];
+          if (targetProfileId) filterConditions.push(`profile_id.ilike.${targetProfileId}`);
+          if (targetEmail) filterConditions.push(`email.ilike.${targetEmail}`);
+          if (targetPhone) filterConditions.push(`phone.eq.${targetPhone}`);
+
+          if (filterConditions.length > 0) {
+            const { data: profile } = await supabaseAdmin
+              .from('profiles')
+              .select('auth_user_id')
+              .or(filterConditions.join(','))
+              .maybeSingle();
+
+            if (profile?.auth_user_id) {
+              authUserId = profile.auth_user_id;
+            }
+          }
+        }
+
+        // 2. If still not found, search Supabase Auth listUsers by email or phone
+        if (!authUserId) {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+          if (listData?.users?.length > 0) {
+            const cleanPhone = (userToDelete.phone || userToDelete.mobile || '').replace(/[^0-9]/g, '');
+            const userEmail = userToDelete.email ? userToDelete.email.toLowerCase() : null;
+
+            const matchedAuthUser = listData.users.find(au => {
+              const auEmail = au.email ? au.email.toLowerCase() : '';
+              const auPhone = (au.phone || au.user_metadata?.phone || '').replace(/[^0-9]/g, '');
+              const auProfileId = (au.user_metadata?.profile_id || '').toLowerCase();
+
+              const emailMatch = userEmail && auEmail === userEmail;
+              const phoneMatch = cleanPhone && auPhone.includes(cleanPhone);
+              const profileMatch = userToDelete.profileId && auProfileId === userToDelete.profileId.toLowerCase();
+
+              return emailMatch || phoneMatch || profileMatch;
+            });
+
+            if (matchedAuthUser) {
+              authUserId = matchedAuthUser.id;
+            }
+          }
+        }
+
+        // 3. Delete from Supabase Auth admin API
+        if (authUserId) {
+          const { error: deleteAuthErr } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
+          if (deleteAuthErr) {
+            console.warn('[Supabase Auth Delete Error]:', deleteAuthErr.message);
+          } else {
+            console.log(`[Supabase Auth Delete] Successfully deleted auth user ${authUserId} (${userToDelete.email || userToDelete.profileId})`);
+          }
+        } else {
+          console.warn('[Supabase Auth Delete] No corresponding Auth user ID found for:', userToDelete.email || userToDelete.profileId);
+        }
+      } catch (authErr) {
+        console.error('[Supabase Auth Delete Exception]:', authErr.message);
+      }
+    }
+
     const filteredUsers = users.filter(u => u !== userToDelete);
     await dbService.saveCollection('users', filteredUsers);
 
-    await logAuditEvent(userToDelete.email || userToDelete.phone, "Account Deleted by Admin");
-    res.json({ success: true, message: "User deleted successfully." });
+    await logAuditEvent(userToDelete.email || userToDelete.phone, "Account Deleted from Auth and Database by Admin");
+    res.json({ success: true, message: "User deleted successfully from Auth and Database." });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to delete user." });
