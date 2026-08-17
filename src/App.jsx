@@ -2507,13 +2507,13 @@ export default function App() {
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "24px" }}>
-                    <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "var(--phone-card-bg)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border-color)", marginBottom: "12px", padding: "8px" }}>
+                    <div style={{ width: "68px", height: "68px", borderRadius: "50%", backgroundColor: "var(--phone-card-bg)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid var(--temple-gold)", marginBottom: "12px", padding: "2px", overflow: "hidden", boxShadow: "0 4px 14px rgba(0,0,0,0.3)" }}>
                       <img 
                         src={theme === "light" 
                           ? "/devsetu_light_logo.png" 
                           : "/devsetu_dark_circular_logo.png"}
                         alt="DevSetu Logo" 
-                        style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
                       />
                     </div>
                     <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "22px", color: "var(--text-main)" }}>
@@ -3105,6 +3105,7 @@ export default function App() {
                               style={{ padding: "12px", fontSize: "14px", height: "48px" }}
                             />
                           </div>
+
 
                           <div className="form-group" style={{ margin: 0 }}>
                             <label className="form-label">Specialization</label>
@@ -5697,7 +5698,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                     <img 
                       src="/devsetu_dark_circular_logo.png"
                       alt="DevSetu Logo" 
-                      style={{ maxWidth: "160px", height: "auto", objectFit: "contain" }}
+                      style={{ maxWidth: "160px", height: "auto", objectFit: "cover", borderRadius: "50%", border: "2px solid var(--temple-gold)" }}
                     />
                   </div>
                   <div style={{ borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: "20px", position: "relative", zIndex: 2 }}>
