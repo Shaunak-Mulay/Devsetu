@@ -2580,6 +2580,69 @@ input:checked + .slider:before {
   }
 }
 
+/* Universal Smooth Scrolling & Ergonomic Touch System */
+html, body, .phone-screen-body, .astro-portal-container, .auth-card-scroll-body, .phone-screen, .workspace-body, .astro-web-content, .astro-portal-viewport {
+  scroll-behavior: smooth !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom Ergonomic & Sleek Scrollbar System */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+}
+
+.dark-theme ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--temple-gold);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--temple-gold-hover);
+}
+
+/* Phone Screen Body Base Utilities for Clean Scrolling & Nav Clearance */
+.phone-screen-body {
+  scroll-behavior: smooth !important;
+  overscroll-behavior-y: contain;
+  padding-bottom: 140px !important;
+  width: 100%;
+}
+
+/* Layout Alignment Helpers */
+.align-center {
+  display: flex;
+  align-items: center;
+}
+
+.justify-center {
+  display: flex;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
 
 
 

@@ -4837,14 +4837,14 @@ export default function App() {
                     <Settings size={18} color="var(--text-muted)" />
                   </div>
 
-                  <div className="phone-screen-body">
+                  <div className="phone-screen-body" style={{ padding: "16px", paddingBottom: "140px", display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto" }}>
                     {/* User Summary Header */}
                         <div className="premium-card" style={{ display: "flex", gap: "12px", alignItems: "center", borderRadius: "16px", border: "2px solid var(--temple-gold)" }}>
                           <div style={{ width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "var(--warm-cream-darker)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", border: "2px solid var(--temple-gold)" }}>
                             🧘
                           </div>
                           <div>
-                            <h4 style={{ fontSize: "16px", fontFamily: "var(--font-heading)" }}>{currentUser?.name || "Acharya Shastri"}</h4>
+                            <h4 style={{ fontSize: "16px", fontFamily: "var(--font-heading)", color: "var(--text-main)" }}>{currentUser?.name || "Acharya Shastri"}</h4>
                             <p style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "monospace" }}>ID: {currentUser?.profileId || "DEV-AST-00001"}</p>
                             <p style={{ fontSize: "12px", color: "var(--orange-accent)", fontWeight: "800" }}>⭐ 4.95 Rating (Platinum Partner)</p>
                           </div>
@@ -4854,17 +4854,17 @@ export default function App() {
                         <div className="premium-card" style={{ padding: 0, overflow: "visible", borderRadius: "16px" }}>
                           <div 
                             onClick={() => setProfileAccordion(profileAccordion === "personal" ? "" : "personal")}
-                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: "var(--warm-cream-darker)", borderBottom: profileAccordion === "personal" ? "1px solid var(--border-color)" : "none" }}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "var(--warm-cream-darker)", borderBottom: profileAccordion === "personal" ? "1px solid var(--border-color)" : "none", color: "var(--text-main)" }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800", color: "var(--text-main)" }}>
                               <span>🧘</span>
                               <span>Personal & Professional Details</span>
                             </div>
-                            <span style={{ transform: profileAccordion === "personal" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▶</span>
+                            <span style={{ transform: profileAccordion === "personal" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", color: "var(--temple-gold)" }}>▶</span>
                           </div>
                           {profileAccordion === "personal" && (
                             <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                              <div style={{ fontSize: "13px", display: "grid", gridTemplateColumns: "minmax(90px, 1fr) minmax(130px, 2fr)", gap: "8px", wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                              <div style={{ fontSize: "13px", display: "grid", gridTemplateColumns: "minmax(90px, 1fr) minmax(130px, 2fr)", gap: "8px", wordBreak: "break-word", overflowWrap: "anywhere", color: "var(--text-main)" }}>
                                 <strong>Name:</strong> <span>{currentUser?.name || "Acharya Shastri"}</span>
                                 <strong>Profile ID:</strong> <span>{currentUser?.profileId || "DEV-AST-00001"}</span>
                                 <strong>Email:</strong> <span style={{ wordBreak: "break-all" }}>{currentUser?.email || "Not Provided"}</span>
@@ -4884,19 +4884,19 @@ export default function App() {
                         <div className="premium-card" style={{ padding: 0, overflow: "hidden", borderRadius: "16px" }}>
                           <div 
                             onClick={() => setProfileAccordion(profileAccordion === "app" ? "" : "app")}
-                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: "var(--warm-cream-darker)", borderBottom: profileAccordion === "app" ? "1px solid var(--border-color)" : "none" }}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "var(--warm-cream-darker)", borderBottom: profileAccordion === "app" ? "1px solid var(--border-color)" : "none", color: "var(--text-main)" }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800", color: "var(--text-main)" }}>
                               <span>⚙️</span>
                               <span>Application Settings</span>
                             </div>
-                            <span style={{ transform: profileAccordion === "app" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▶</span>
+                            <span style={{ transform: profileAccordion === "app" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", color: "var(--temple-gold)" }}>▶</span>
                           </div>
                           {profileAccordion === "app" && (
                             <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
                               {/* Language */}
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span style={{ fontSize: "14px", fontWeight: "700" }}>Language</span>
+                                <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)" }}>Language</span>
                                 <select 
                                   value={language}
                                   onChange={(e) => setLanguage(e.target.value)}
@@ -4911,7 +4911,7 @@ export default function App() {
 
                               {/* Theme */}
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span style={{ fontSize: "14px", fontWeight: "700" }}>Theme</span>
+                                <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)" }}>Theme</span>
                                 <div style={{ display: "flex", gap: "6px" }}>
                                   <button 
                                     type="button"
@@ -4920,8 +4920,8 @@ export default function App() {
                                     style={{ 
                                       fontSize: "12px", 
                                       padding: "6px 12px",
-                                      backgroundColor: theme === "light" ? "var(--primary-brown)" : "transparent",
-                                      color: theme === "light" ? "var(--warm-cream)" : "var(--text-main)",
+                                      backgroundColor: theme === "light" ? "var(--temple-gold)" : "transparent",
+                                      color: theme === "light" ? "#ffffff" : "var(--text-main)",
                                     }}
                                   >
                                     Light
@@ -4933,8 +4933,8 @@ export default function App() {
                                     style={{ 
                                       fontSize: "12px", 
                                       padding: "6px 12px",
-                                      backgroundColor: theme === "dark" ? "var(--primary-brown)" : "transparent",
-                                      color: theme === "dark" ? "var(--warm-cream)" : "var(--text-main)",
+                                      backgroundColor: theme === "dark" ? "var(--temple-gold)" : "transparent",
+                                      color: theme === "dark" ? "#ffffff" : "var(--text-main)",
                                     }}
                                   >
                                     Dark
@@ -4944,7 +4944,7 @@ export default function App() {
 
                               {/* Accessibility Mode Toggle */}
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span style={{ fontSize: "14px", fontWeight: "700" }}>♿ Accessibility Mode (+4px Font Size)</span>
+                                <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)" }}>♿ Accessibility Mode (+4px Font Size)</span>
                                 <label className="toggle-switch">
                                   <input 
                                     type="checkbox" 
@@ -4962,13 +4962,13 @@ export default function App() {
                         <div className="premium-card" style={{ padding: 0, overflow: "hidden", borderRadius: "16px" }}>
                           <div 
                             onClick={() => setProfileAccordion(profileAccordion === "notifications" ? "" : "notifications")}
-                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: "var(--warm-cream-darker)", borderBottom: profileAccordion === "notifications" ? "1px solid var(--border-color)" : "none" }}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "var(--warm-cream-darker)", borderBottom: profileAccordion === "notifications" ? "1px solid var(--border-color)" : "none", color: "var(--text-main)" }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800", color: "var(--text-main)" }}>
                               <span>🔔</span>
                               <span>Notification Preferences</span>
                             </div>
-                            <span style={{ transform: profileAccordion === "notifications" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▶</span>
+                            <span style={{ transform: profileAccordion === "notifications" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", color: "var(--temple-gold)" }}>▶</span>
                           </div>
                           {profileAccordion === "notifications" && (
                             <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -5083,31 +5083,31 @@ export default function App() {
                         <div className="premium-card" style={{ padding: 0, overflow: "hidden", borderRadius: "16px" }}>
                           <div 
                             onClick={() => setProfileAccordion(profileAccordion === "legal" ? "" : "legal")}
-                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: "var(--warm-cream-darker)", borderBottom: profileAccordion === "legal" ? "1px solid var(--border-color)" : "none" }}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "var(--warm-cream-darker)", borderBottom: profileAccordion === "legal" ? "1px solid var(--border-color)" : "none", color: "var(--text-main)" }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800", color: "var(--text-main)" }}>
                               <span>🛡️</span>
                               <span>Legal & About Information</span>
                             </div>
-                            <span style={{ transform: profileAccordion === "legal" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▶</span>
+                            <span style={{ transform: profileAccordion === "legal" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", color: "var(--temple-gold)" }}>▶</span>
                           </div>
                           {profileAccordion === "legal" && (
                             <div style={{ padding: "8px 16px", display: "flex", flexDirection: "column" }}>
-                              <div onClick={() => setShowAboutModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "13px" }}>
+                              <div onClick={() => setShowAboutModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "13px", color: "var(--text-main)" }}>
                                 <span>ℹ️ About & Version</span>
                                 <span style={{ fontWeight: "700", color: "var(--text-muted)" }}>v1.0.0</span>
                               </div>
-                              <div onClick={() => setShowPrivacyModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "13px" }}>
+                              <div onClick={() => setShowPrivacyModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "13px", color: "var(--text-main)" }}>
                                 <span>🛡️ Privacy Policy</span>
-                                <span>▶</span>
+                                <span style={{ color: "var(--temple-gold)" }}>▶</span>
                               </div>
-                              <div onClick={() => setShowHelpGuideModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "13px" }}>
+                              <div onClick={() => setShowHelpGuideModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border-color)", cursor: "pointer", fontSize: "13px", color: "var(--text-main)" }}>
                                 <span>📖 Application Help Guide</span>
-                                <span>▶</span>
+                                <span style={{ color: "var(--temple-gold)" }}>▶</span>
                               </div>
-                              <div onClick={() => setShowTermsModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", cursor: "pointer", fontSize: "13px" }}>
+                              <div onClick={() => setShowTermsModal(true)} style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", cursor: "pointer", fontSize: "13px", color: "var(--text-main)" }}>
                                 <span>📄 Terms & Conditions</span>
-                                <span>▶</span>
+                                <span style={{ color: "var(--temple-gold)" }}>▶</span>
                               </div>
                             </div>
                           )}
@@ -5117,13 +5117,13 @@ export default function App() {
                         <div className="premium-card" style={{ padding: 0, overflow: "hidden", borderRadius: "16px" }}>
                           <div 
                             onClick={() => setProfileAccordion(profileAccordion === "pin" ? "" : "pin")}
-                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: "var(--warm-cream-darker)", borderBottom: profileAccordion === "pin" ? "1px solid var(--border-color)" : "none" }}
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px", cursor: "pointer", backgroundColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "var(--warm-cream-darker)", borderBottom: profileAccordion === "pin" ? "1px solid var(--border-color)" : "none", color: "var(--text-main)" }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", fontWeight: "800", color: "var(--text-main)" }}>
                               <span>🔑</span>
                               <span>Login PIN Information</span>
                             </div>
-                            <span style={{ transform: profileAccordion === "pin" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▶</span>
+                            <span style={{ transform: profileAccordion === "pin" ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", color: "var(--temple-gold)" }}>▶</span>
                           </div>
                           {profileAccordion === "pin" && (
                             <div style={{ padding: "16px", fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.4" }}>
@@ -5200,7 +5200,7 @@ export default function App() {
                       textAlign: "center"
                     }}>
                       <div style={{ fontSize: "28px", marginBottom: "4px" }}>📖</div>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--primary-brown)", margin: "0 0 4px 0" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: theme === "dark" ? "var(--temple-gold)" : "var(--primary-brown)", margin: "0 0 4px 0" }}>
                         DEVSETU CONNECT — User Manual & Guide
                       </h4>
                       <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.5", margin: 0 }}>
@@ -5210,13 +5210,13 @@ export default function App() {
 
                     {/* Section 1: Getting Started */}
                     <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: theme === "dark" ? "var(--temple-gold)" : "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                         1. 🚀 GETTING STARTED
                       </h4>
                       <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
                         DEVSETU CONNECT is a digital platform designed to help verified astrologers and spiritual-service partners manage Pooja services, bookings, payments, and communications.
                       </p>
-                      <div style={{ backgroundColor: "var(--warm-cream-darker)", padding: "10px", borderRadius: "8px", fontSize: "11px" }}>
+                      <div style={{ backgroundColor: theme === "dark" ? "rgba(255,255,255,0.06)" : "var(--warm-cream-darker)", padding: "10px", borderRadius: "8px", fontSize: "11px", color: "var(--text-main)" }}>
                         <strong>Astrologers can:</strong> Register, Login via Mobile & 6-Digit PIN, Browse Pooja services, Book rituals, Submit UPI advance UTRs, Track status, and Manage support tickets.
                       </div>
                     </div>
@@ -5238,7 +5238,7 @@ export default function App() {
 
                     {/* Section 3: Registration & Validation */}
                     <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: theme === "dark" ? "var(--temple-gold)" : "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                         3. 📝 REGISTRATION & ACCOUNT VALIDATION
                       </h4>
                       <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
@@ -5252,7 +5252,7 @@ export default function App() {
 
                     {/* Section 4: Login & Forgot PIN */}
                     <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: theme === "dark" ? "var(--temple-gold)" : "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                         4. 🔑 LOGIN & FORGOT PIN FLOW
                       </h4>
                       <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
@@ -5263,7 +5263,7 @@ export default function App() {
 
                     {/* Section 5: Pooja Services & Booking */}
                     <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: theme === "dark" ? "var(--temple-gold)" : "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                         5. 🕉️ POOJA SERVICES & BOOKINGS
                       </h4>
                       <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
@@ -5275,7 +5275,7 @@ export default function App() {
 
                     {/* Section 6: Advance Payment & UTR */}
                     <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: theme === "dark" ? "var(--temple-gold)" : "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                         6. 💳 20% ADVANCE PAYMENT & UTR
                       </h4>
                       <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
@@ -5288,7 +5288,7 @@ export default function App() {
 
                     {/* Section 7: Booking Statuses */}
                     <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: theme === "dark" ? "var(--temple-gold)" : "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                         7. 📊 BOOKING STATUS TRACKING
                       </h4>
                       <div style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6" }}>
@@ -5302,7 +5302,7 @@ export default function App() {
 
                     {/* Section 8: Support Tickets */}
                     <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: theme === "dark" ? "var(--temple-gold)" : "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                         8. 💬 PRIVATE SUPPORT TICKETS
                       </h4>
                       <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
@@ -5317,13 +5317,13 @@ export default function App() {
                       </h4>
                       <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
                         You can request account deletion anytime via the <strong>Delete Account</strong> button in your Profile tab, or online at: <br/>
-                        <a href="https://devsetu-eta.vercel.app/#delete-account" target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary-brown)", fontWeight: "700" }}>https://devsetu-eta.vercel.app/#delete-account</a>
+                        <a href="https://devsetu-eta.vercel.app/#delete-account" target="_blank" rel="noopener noreferrer" style={{ color: "var(--temple-gold)", fontWeight: "700" }}>https://devsetu-eta.vercel.app/#delete-account</a>
                       </p>
                     </div>
 
                     {/* Section 10: Legal Policies */}
                     <div className="premium-card" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <h4 style={{ fontFamily: "var(--font-heading)", fontSize: "14px", color: theme === "dark" ? "var(--temple-gold)" : "var(--primary-brown)", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
                         10. 📜 PRIVACY POLICY & TERMS
                       </h4>
                       <p style={{ fontSize: "11px", color: "var(--text-main)", lineHeight: "1.6", margin: 0 }}>
