@@ -2509,18 +2509,32 @@ input:checked + .slider:before {
   }
 }
 
-/* Responsive Astrologer Registration Form Grid & Internal Card Scroll Container */
+/* Responsive Astrologer Registration Form Grid & Full Height Card Scroll Container */
+.premium-card {
+  background-color: var(--phone-card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-smooth);
+  display: flex;
+  flex-direction: column;
+  min-height: 68vh;
+  min-height: 68dvh;
+  box-sizing: border-box;
+}
+
 .astro-signup-form-container {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: 58vh;
-  max-height: 58dvh;
+  max-height: 68vh;
+  max-height: 68dvh;
   overflow-y: auto !important;
   padding-right: 6px;
   -webkit-overflow-scrolling: touch;
   width: 100%;
   box-sizing: border-box;
+  flex: 1;
 }
 
 .astro-signup-grid {
