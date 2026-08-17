@@ -2507,13 +2507,13 @@ export default function App() {
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "24px" }}>
-                    <div style={{ width: "68px", height: "68px", borderRadius: "50%", backgroundColor: "var(--phone-card-bg)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid var(--temple-gold)", marginBottom: "12px", padding: "2px", overflow: "hidden", boxShadow: "0 4px 14px rgba(0,0,0,0.3)" }}>
+                    <div style={{ width: "68px", height: "68px", borderRadius: "50%", backgroundColor: "var(--phone-card-bg)", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid var(--temple-gold)", marginBottom: "12px", padding: 0, overflow: "hidden", boxShadow: "0 4px 14px rgba(0,0,0,0.3)" }}>
                       <img 
                         src={theme === "light" 
                           ? "/devsetu_light_logo.png" 
                           : "/devsetu_dark_circular_logo.png"}
                         alt="DevSetu Logo" 
-                        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%", overflow: "hidden" }}
                       />
                     </div>
                     <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "22px", color: "var(--text-main)" }}>
@@ -2525,6 +2525,62 @@ export default function App() {
                   </div>
 
                   <div className="premium-card" style={{ padding: "20px" }}>
+                    {forgotStep === 0 && (
+                      <div style={{ 
+                        display: "flex", 
+                        borderRadius: "10px", 
+                        backgroundColor: theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", 
+                        padding: "4px", 
+                        marginBottom: "20px", 
+                        border: theme === "dark" ? "1px solid rgba(255,255,255,0.15)" : "1px solid var(--border-color)" 
+                      }}>
+                        <button 
+                          type="button"
+                          onClick={() => { setIsRegistering(false); setLoginError(null); }}
+                          style={{ 
+                            flex: 1, 
+                            padding: "10px 14px", 
+                            borderRadius: "8px", 
+                            border: "none", 
+                            fontWeight: "800", 
+                            fontSize: "13px",
+                            backgroundColor: !isRegistering ? "var(--temple-gold)" : "transparent",
+                            color: !isRegistering ? "#ffffff" : (theme === "dark" ? "#FFFFFF" : "var(--text-muted)"),
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px"
+                          }}
+                        >
+                          🔑 Sign In
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => { setIsRegistering(true); setLoginError(null); }}
+                          style={{ 
+                            flex: 1, 
+                            padding: "10px 14px", 
+                            borderRadius: "8px", 
+                            border: "none", 
+                            fontWeight: "800", 
+                            fontSize: "13px",
+                            backgroundColor: isRegistering ? "var(--temple-gold)" : "transparent",
+                            color: isRegistering ? "#ffffff" : (theme === "dark" ? "#FFFFFF" : "var(--text-muted)"),
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px"
+                          }}
+                        >
+                          📝 Sign Up / Register
+                        </button>
+                      </div>
+                    )}
+
                     {forgotStep !== 0 ? (
                       <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                         <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "16px", color: "var(--text-main)", margin: 0, textAlign: "center" }}>
@@ -2949,9 +3005,29 @@ export default function App() {
                           </button>
                         </form>
 
+                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "13px", color: theme === "dark" ? "#FFFFFF" : "var(--text-main)", fontWeight: "600" }}>
+                          {localTranslations[language]?.loginSignUpPrompt || localTranslations.en.loginSignUpPrompt}{" "}
+                          <button 
+                            type="button"
+                            onClick={() => setIsRegistering(true)}
+                            style={{ 
+                              background: "none", 
+                              border: "none", 
+                              color: "var(--temple-gold)", 
+                              fontWeight: "800", 
+                              textDecoration: "underline", 
+                              cursor: "pointer", 
+                              fontSize: "13px", 
+                              marginLeft: "4px" 
+                            }}
+                          >
+                            {localTranslations[language]?.loginSignUp || localTranslations.en.loginSignUp} →
+                          </button>
+                        </div>
+
                         <div style={{ 
                           textAlign: "center", 
-                          marginTop: "16px", 
+                          marginTop: "12px", 
                           fontSize: "11px", 
                           color: theme === "dark" ? "#FFFFFF" : "var(--text-muted)", 
                           lineHeight: "1.5",
@@ -2996,23 +3072,7 @@ export default function App() {
                           </button>
                         </div>
 
-                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: theme === "dark" ? "#FFFFFF" : "var(--text-muted)" }}>
-                          {localTranslations[language]?.loginSignUpPrompt || localTranslations.en.loginSignUpPrompt}
-                          <a 
-                            href="#" 
-                            style={{ 
-                              color: theme === "dark" ? "#FFFFFF" : "var(--primary-brown)", 
-                              fontWeight: "800", 
-                              textDecoration: "underline",
-                              marginLeft: "4px" 
-                            }} 
-                            onClick={(e) => { e.preventDefault(); setIsRegistering(true); }}
-                          >
-                            {localTranslations[language]?.loginSignUp || localTranslations.en.loginSignUp}
-                          </a>
-                        </div>
-
-                        <div style={{ textAlign: "center", marginTop: "16px" }}>
+                        <div style={{ textAlign: "center", marginTop: "12px" }}>
                           <button 
                             type="button"
                             onClick={() => { setActiveRoleSelection(null); setLoginError(null); }}
@@ -3026,150 +3086,151 @@ export default function App() {
                   ) : (
                       <>
                         <h3 style={{ fontSize: "16px", fontFamily: "var(--font-heading)", textAlign: "center", marginBottom: "16px" }}>Astrologer Registration</h3>
-                        <form onSubmit={handleSignUpSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                          <div className="minimal-input-wrapper">
-                            <span className="minimal-input-icon">👤</span>
-                            <input 
-                              type="text" 
-                              required
-                              placeholder="Full Name" 
-                              className="minimal-input"
-                              value={signupName}
-                              onChange={(e) => setSignupName(e.target.value)}
-                            />
-                          </div>
+                        <form onSubmit={handleSignUpSubmit} className="astro-signup-form-container" style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "6px" }}>
+                          <div className="astro-signup-grid">
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">👤</span>
+                              <input 
+                                type="text" 
+                                required
+                                placeholder="Full Name" 
+                                className="minimal-input"
+                                value={signupName}
+                                onChange={(e) => setSignupName(e.target.value)}
+                              />
+                            </div>
 
-                           <div className="minimal-input-wrapper">
-                            <span className="minimal-input-icon">📧</span>
-                            <input 
-                              type="email" 
-                              placeholder="Email Address (Optional)" 
-                              className="minimal-input"
-                              value={signupEmail}
-                              onChange={(e) => setSignupEmail(e.target.value)}
-                            />
-                          </div>
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">📧</span>
+                              <input 
+                                type="email" 
+                                placeholder="Email Address (Optional)" 
+                                className="minimal-input"
+                                value={signupEmail}
+                                onChange={(e) => setSignupEmail(e.target.value)}
+                              />
+                            </div>
 
-                          <div className="minimal-input-wrapper">
-                            <span className="minimal-input-icon">📱</span>
-                            <input 
-                              type="tel" 
-                              required
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              placeholder="Mobile Number" 
-                              className="minimal-input"
-                              value={signupPhone}
-                              onChange={(e) => setSignupPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                            />
-                          </div>
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">📱</span>
+                              <input 
+                                type="tel" 
+                                required
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                placeholder="Mobile Number" 
+                                className="minimal-input"
+                                value={signupPhone}
+                                onChange={(e) => setSignupPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                              />
+                            </div>
 
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label">State</label>
-                            <select 
-                              value={signupState}
-                              onChange={(e) => setSignupState(e.target.value)}
-                              className="form-select"
-                              style={{ width: "100%", padding: "12px", fontSize: "14px", height: "48px" }}
-                            >
-                              <option value="Maharashtra">Maharashtra</option>
-                              <option value="Uttar Pradesh">Uttar Pradesh</option>
-                              <option value="Madhya Pradesh">Madhya Pradesh</option>
-                              <option value="Uttarakhand">Uttarakhand</option>
-                              <option value="Karnataka">Karnataka</option>
-                            </select>
-                          </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label">State</label>
+                              <select 
+                                value={signupState}
+                                onChange={(e) => setSignupState(e.target.value)}
+                                className="form-select"
+                                style={{ width: "100%", padding: "12px", fontSize: "14px", height: "48px" }}
+                              >
+                                <option value="Maharashtra">Maharashtra</option>
+                                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                <option value="Madhya Pradesh">Madhya Pradesh</option>
+                                <option value="Uttarakhand">Uttarakhand</option>
+                                <option value="Karnataka">Karnataka</option>
+                              </select>
+                            </div>
 
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label">District</label>
-                            <input 
-                              type="text"
-                              required
-                              placeholder="e.g. Pune"
-                              className="form-input"
-                              value={signupDistrict}
-                              onChange={(e) => setSignupDistrict(e.target.value)}
-                              style={{ padding: "12px", fontSize: "14px", height: "48px" }}
-                            />
-                          </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label">District</label>
+                              <input 
+                                type="text"
+                                required
+                                placeholder="e.g. Pune"
+                                className="form-input"
+                                value={signupDistrict}
+                                onChange={(e) => setSignupDistrict(e.target.value)}
+                                style={{ padding: "12px", fontSize: "14px", height: "48px" }}
+                              />
+                            </div>
 
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label">City</label>
-                            <input 
-                              type="text"
-                              required
-                              placeholder="e.g. Varanasi"
-                              className="form-input"
-                              value={signupCity}
-                              onChange={(e) => setSignupCity(e.target.value)}
-                              style={{ padding: "12px", fontSize: "14px", height: "48px" }}
-                            />
-                          </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label">City</label>
+                              <input 
+                                type="text"
+                                required
+                                placeholder="e.g. Varanasi"
+                                className="form-input"
+                                value={signupCity}
+                                onChange={(e) => setSignupCity(e.target.value)}
+                                style={{ padding: "12px", fontSize: "14px", height: "48px" }}
+                              />
+                            </div>
 
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label">Specialization</label>
+                              <select 
+                                value={signupSpecialization}
+                                onChange={(e) => setSignupSpecialization(e.target.value)}
+                                className="form-select"
+                                style={{ width: "100%", padding: "12px", fontSize: "14px", height: "48px" }}
+                              >
+                                <option value="Horoscope Reading">Horoscope Reading</option>
+                                <option value="Tarot Astrology">Tarot Astrology</option>
+                                <option value="Face Reading / Physiognomy">Face Reading / Physiognomy</option>
+                                <option value="Vastu Shastra">Vastu Shastra</option>
+                                <option value="Numerology">Numerology</option>
+                                <option value="Palmistry">Palmistry</option>
+                              </select>
+                            </div>
 
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label">Specialization</label>
-                            <select 
-                              value={signupSpecialization}
-                              onChange={(e) => setSignupSpecialization(e.target.value)}
-                              className="form-select"
-                              style={{ width: "100%", padding: "12px", fontSize: "14px", height: "48px" }}
-                            >
-                              <option value="Horoscope Reading">Horoscope Reading</option>
-                              <option value="Tarot Astrology">Tarot Astrology</option>
-                              <option value="Face Reading / Physiognomy">Face Reading / Physiognomy</option>
-                              <option value="Vastu Shastra">Vastu Shastra</option>
-                              <option value="Numerology">Numerology</option>
-                              <option value="Palmistry">Palmistry</option>
-                            </select>
-                          </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label">Years of Experience</label>
+                              <select 
+                                value={signupExperience}
+                                onChange={(e) => setSignupExperience(e.target.value)}
+                                className="form-select"
+                                style={{ width: "100%", padding: "12px", fontSize: "14px", height: "48px" }}
+                              >
+                                <option value="3 Years">3 Years</option>
+                                <option value="5 Years">5 Years</option>
+                                <option value="7 Years">7 Years</option>
+                                <option value="10 Years">10 Years</option>
+                                <option value="15+ Years">15+ Years</option>
+                              </select>
+                            </div>
 
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label">Years of Experience</label>
-                            <select 
-                              value={signupExperience}
-                              onChange={(e) => setSignupExperience(e.target.value)}
-                              className="form-select"
-                              style={{ width: "100%", padding: "12px", fontSize: "14px", height: "48px" }}
-                            >
-                              <option value="3 Years">3 Years</option>
-                              <option value="5 Years">5 Years</option>
-                              <option value="7 Years">7 Years</option>
-                              <option value="10 Years">10 Years</option>
-                              <option value="15+ Years">15+ Years</option>
-                            </select>
-                          </div>
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">🔒</span>
+                              <input 
+                                type="password" 
+                                required
+                                autoComplete="new-password"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={6}
+                                placeholder="6-Digit Login PIN" 
+                                className="minimal-input"
+                                value={signupPassword}
+                                onChange={(e) => setSignupPassword(e.target.value.replace(/[^0-9]/g, ''))}
+                              />
+                            </div>
 
-                          <div className="minimal-input-wrapper">
-                            <span className="minimal-input-icon">🔒</span>
-                            <input 
-                              type="password" 
-                              required
-                              autoComplete="new-password"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              maxLength={6}
-                              placeholder="6-Digit Login PIN" 
-                              className="minimal-input"
-                              value={signupPassword}
-                              onChange={(e) => setSignupPassword(e.target.value.replace(/[^0-9]/g, ''))}
-                            />
-                          </div>
-
-                          <div className="minimal-input-wrapper">
-                            <span className="minimal-input-icon">🔒</span>
-                            <input 
-                              type="password" 
-                              required
-                              autoComplete="new-password"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              maxLength={6}
-                              placeholder="Confirm 6-Digit PIN" 
-                              className="minimal-input"
-                              value={signupConfirmPassword}
-                              onChange={(e) => setSignupConfirmPassword(e.target.value.replace(/[^0-9]/g, ''))}
-                            />
+                            <div className="minimal-input-wrapper">
+                              <span className="minimal-input-icon">🔒</span>
+                              <input 
+                                type="password" 
+                                required
+                                autoComplete="new-password"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={6}
+                                placeholder="Confirm 6-Digit PIN" 
+                                className="minimal-input"
+                                value={signupConfirmPassword}
+                                onChange={(e) => setSignupConfirmPassword(e.target.value.replace(/[^0-9]/g, ''))}
+                              />
+                            </div>
                           </div>
 
                           <div style={{ 
@@ -3228,20 +3289,24 @@ export default function App() {
                           </button>
                         </form>
 
-                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px", color: theme === "dark" ? "#FFFFFF" : "var(--text-muted)" }}>
+                        <div style={{ textAlign: "center", marginTop: "16px", fontSize: "13px", color: theme === "dark" ? "#FFFFFF" : "var(--text-main)", fontWeight: "600" }}>
                           Already have an account?{" "}
-                          <a 
-                            href="#" 
+                          <button 
+                            type="button" 
+                            onClick={() => setIsRegistering(false)} 
                             style={{ 
-                              color: theme === "dark" ? "#FFFFFF" : "var(--primary-brown)", 
+                              background: "none", 
+                              border: "none", 
+                              color: "var(--temple-gold)", 
                               fontWeight: "800", 
-                              textDecoration: "underline",
+                              textDecoration: "underline", 
+                              cursor: "pointer", 
+                              fontSize: "13px", 
                               marginLeft: "4px" 
-                            }} 
-                            onClick={(e) => { e.preventDefault(); setIsRegistering(false); }}
+                            }}
                           >
-                            Sign In
-                          </a>
+                            Sign In Here →
+                          </button>
                         </div>
                       </>
                     )}

@@ -150,8 +150,29 @@ button, input, select, textarea {
 
 .brand-logo-img {
   height: 48px;
-  width: auto;
-  object-fit: contain;
+  width: 48px;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  object-fit: cover !important;
+}
+
+.role-selection-logo {
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.role-selection-logo img {
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  object-fit: cover !important;
+}
+
+img[src*="devsetu_light_logo"],
+img[src*="devsetu_dark_circular_logo"] {
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  object-fit: cover !important;
 }
 
 .brand-name {
@@ -2458,6 +2479,26 @@ input:checked + .slider:before {
     font-size: 18px !important;
   }
 }
+
+/* Responsive Astrologer Registration Form Grid & Scroll Container */
+.astro-signup-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 65vh;
+  max-height: 65dvh;
+  overflow-y: auto !important;
+  padding-right: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.astro-signup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
 
 
 
