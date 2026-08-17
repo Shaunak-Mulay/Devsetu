@@ -160,117 +160,209 @@ class EmailServiceClass {
     }
   }
 
-  getBaseHtmlTemplate(title, innerContent) {
+  getBaseHtmlTemplate(title, innerContent, badgeText = '✨ Email Verification') {
     return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td, a { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
   <style>
-    body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      background-color: #f7f2ed;
+    /* Reset */
+    body, p, h1, h2, h3 {
       margin: 0;
       padding: 0;
-      color: #2b1b12;
+    }
+    body {
+      background-color: #FFF6E9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #2B1B12;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    table {
+      border-spacing: 0;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+    img {
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+      display: block;
+    }
+    .wrapper {
+      width: 100%;
+      table-layout: fixed;
+      background-color: #FFF6E9;
+      padding: 40px 12px;
     }
     .container {
-      max-width: 600px;
-      margin: 30px auto;
-      background-color: #ffffff;
-      border: 2px solid #d4af37;
-      border-radius: 16px;
+      max-width: 560px;
+      margin: 0 auto;
+      background-color: #FFFFFF;
+      border-radius: 20px;
       overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      border: 1.5px solid #E8DFD3;
+      box-shadow: 0 12px 35px rgba(43, 27, 18, 0.12);
     }
     .header {
-      background-color: #2b1b12;
-      padding: 24px;
+      background-color: #FFF6E9;
+      padding: 34px 24px 28px 24px;
       text-align: center;
-      border-bottom: 3px solid #d4af37;
+      border-bottom: 2px solid #E8DFD3;
     }
-    .header h2 {
-      color: #d4af37;
-      margin: 0;
-      font-size: 24px;
+    .logo-img {
+      max-height: 70px;
+      width: auto;
+      margin: 0 auto 12px auto;
+    }
+    .subtitle {
+      color: #5C4A40;
+      font-size: 13px;
       letter-spacing: 1px;
-      font-weight: bold;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(212, 175, 55, 0.2);
+      border: 1px solid #D4AF37;
+      color: #5B0F0F;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 10px;
     }
     .content {
-      padding: 30px;
-      line-height: 1.6;
-      font-size: 16px;
+      padding: 38px 34px 30px 34px;
+      background-color: #FFFFFF;
     }
-    .content h1 {
+    .greeting {
       font-size: 22px;
-      color: #2b1b12;
-      margin-top: 0;
-      font-weight: bold;
-      border-bottom: 1px solid #f0e6df;
-      padding-bottom: 10px;
+      font-weight: 800;
+      color: #2B1B12;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .text {
+      font-size: 15px;
+      line-height: 1.65;
+      color: #5C4A40;
+      margin-bottom: 24px;
+    }
+    .highlight-box {
+      background-color: #FFF6E9;
+      border-radius: 12px;
+      padding: 14px 18px;
+      border-left: 4px solid #D4AF37;
+      margin-bottom: 28px;
+      font-size: 14px;
+      color: #2B1B12;
+    }
+    .btn-wrap {
+      text-align: center;
+      margin: 34px 0;
+    }
+    .btn-main, .button {
+      background: linear-gradient(135deg, #D4AF37 0%, #B89223 100%);
+      color: #2B1B12 !important;
+      text-decoration: none;
+      padding: 16px 42px;
+      font-size: 16px;
+      font-weight: 800;
+      border-radius: 30px;
+      display: inline-block;
+      letter-spacing: 0.5px;
+      box-shadow: 0 6px 18px rgba(212, 175, 55, 0.45);
+      border: 1px solid #B89223;
     }
     .detail-row {
       display: flex;
       justify-content: space-between;
-      border-bottom: 1px dashed #f0e6df;
-      padding: 8px 0;
+      border-bottom: 1px dashed #E8DFD3;
+      padding: 10px 0;
       font-size: 14px;
     }
     .detail-row strong {
-      color: #8c7365;
+      color: #5C4A40;
     }
-    .badge {
-      display: inline-block;
-      background-color: #fff6e9;
-      border: 1px solid #e67e22;
-      color: #e67e22;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 13px;
-      margin: 12px 0;
+    .divider {
+      border-top: 1px solid #E8DFD3;
+      margin: 28px 0 20px 0;
     }
     .footer {
-      background-color: #fff6e9;
-      padding: 20px;
+      background-color: #FFF6E9;
+      padding: 24px;
       text-align: center;
+      border-top: 1px solid #E8DFD3;
+    }
+    .footer p {
       font-size: 12px;
-      color: #8c7365;
-      border-top: 1px solid #f0e6df;
+      color: #8C7A70;
+      line-height: 1.6;
     }
-    .footer a {
-      color: #e67e22;
-      text-decoration: none;
-    }
-    .button {
-      display: inline-block;
-      background-color: #2b1b12;
-      color: #ffffff !important;
-      padding: 12px 24px;
-      border-radius: 28px;
-      text-decoration: none;
-      font-weight: bold;
-      margin: 20px 0;
-      border: 1.5px solid #d4af37;
-      text-align: center;
+    .fallback {
+      font-size: 12px;
+      color: #8C7A70;
+      line-height: 1.5;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h2>DEVSETU CONNECT</h2>
-    </div>
-    <div class="content">
-      ${innerContent}
-    </div>
-    <div class="footer">
-      <p>This is an automated notification from <strong>DEVSETU Connect</strong>.</p>
-      <p>For support, please call <strong>${config.support.phone}</strong> or email <a href="mailto:${config.support.email}">${config.support.email}</a>.</p>
-      <p>&copy; 2026 Devsetu Spiritual Services. All rights reserved.</p>
-    </div>
+  <div class="wrapper">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center">
+          <div class="container">
+            
+            <!-- HEADER WITH DEVSETU LOGO -->
+            <div class="header">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <img 
+                      src="https://devsetu-eta.vercel.app/devsetu_light_logo.png" 
+                      alt="DEVSETU" 
+                      class="logo-img" 
+                      style="max-width: 210px;"
+                    />
+                    <div class="subtitle">Spiritual Solutions & Astrologer Portal</div>
+                    <div class="badge">${badgeText}</div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- CONTENT BODY -->
+            <div class="content">
+              ${innerContent}
+            </div>
+
+            <!-- FOOTER -->
+            <div class="footer">
+              <p>
+                © <strong>DEVSETU</strong>. Connecting Astrologers to Spiritual Solutions.<br>
+                Support: <a href="mailto:${config.support.email}" style="color: #5B0F0F; font-weight: 700; text-decoration: none;">${config.support.email}</a>
+              </p>
+            </div>
+
+          </div>
+        </td>
+      </tr>
+    </table>
   </div>
 </body>
 </html>

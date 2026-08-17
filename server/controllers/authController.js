@@ -9,16 +9,37 @@ import { supabase, supabaseAdmin, isSupabaseConfigured } from '../config/supabas
 
 /**
  * Helper to sync or create user in Supabase auth.users table
+ * If options.sendSupabaseInvite is true, triggers Supabase's built-in Auth Email Template
  */
-export async function syncUserToSupabaseAuth(user, plainPassword) {
+export async function syncUserToSupabaseAuth(user, plainPassword, options = {}) {
   if (!isSupabaseConfigured()) return null;
   try {
     const cleanPhone = (user.phone || user.mobile || '').replace(/[^0-9]/g, '');
-    const userEmail = (user.email && user.email.trim()) 
-      ? user.email.trim().toLowerCase() 
-      : (cleanPhone ? `${cleanPhone}@astrologer.devsetu.in` : null);
+    const rawEmail = user.email && user.email.trim() ? user.email.trim().toLowerCase() : null;
+    const isRealEmail = rawEmail && rawEmail.includes('@') && !rawEmail.endsWith('@astrologer.devsetu.in');
+    const userEmail = rawEmail || (cleanPhone ? `${cleanPhone}@astrologer.devsetu.in` : null);
 
     if (!userEmail) return null;
+
+    // Trigger Supabase Auth's custom Email Template via inviteUserByEmail if requested or for real emails
+    if (isRealEmail && options.sendSupabaseInvite) {
+      try {
+        const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(userEmail, {
+          data: {
+            role: user.role || 'astrologer',
+            profile_id: user.profileId,
+            name: user.name,
+            phone: user.phone
+          }
+        });
+        if (!inviteErr && inviteData?.user) {
+          console.log(`[Supabase Auth Sync] Sent Supabase Dashboard email template to ${userEmail} (ID: ${inviteData.user.id})`);
+          return inviteData.user.id;
+        }
+      } catch (invErr) {
+        console.warn('[Supabase Auth Invite Notice]:', invErr.message);
+      }
+    }
 
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email: userEmail,
@@ -54,6 +75,30 @@ export async function syncUserToSupabaseAuth(user, plainPassword) {
     console.warn('[Supabase Auth Sync] Notice:', err.message);
   }
   return null;
+}
+
+export async function resendSupabaseAuthEmail(req, res) {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required." });
+  }
+
+  if (!isSupabaseConfigured()) {
+    return res.status(400).json({ error: "Supabase is not configured." });
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email.trim().toLowerCase());
+    if (error) {
+      console.error('[Supabase Auth Invite Error]:', error.message);
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ success: true, message: `Supabase confirmation email sent to ${email}.` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to send Supabase email." });
+  }
 }
 
 /**
