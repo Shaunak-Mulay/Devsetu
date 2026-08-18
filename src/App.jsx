@@ -587,7 +587,33 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Merge parsed custom items with default servicesData to ensure all official poojas exist
+          const parsedMap = new Map(parsed.map(s => [s.id, s]));
+          const mergedList = servicesData.map(defaultS => {
+            const existing = parsedMap.get(defaultS.id);
+            if (existing) {
+              return {
+                ...defaultS,
+                ...existing,
+                category: existing.category || defaultS.category || "Vedic Rituals"
+              };
+            }
+            return defaultS;
+          });
+
+          // Add any custom poojas added by admin that are not in default servicesData
+          parsed.forEach(item => {
+            if (!servicesData.some(d => d.id === item.id)) {
+              mergedList.push({
+                ...item,
+                category: item.category || "Vedic Rituals"
+              });
+            }
+          });
+
+          return mergedList;
+        }
       } catch (e) {
         console.warn("Failed to parse custom services from localStorage:", e);
       }
@@ -602,7 +628,11 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Ensure all default categories are included
+          const combined = Array.from(new Set([...defaultCats, ...parsed]));
+          return combined;
+        }
       } catch (e) {
         console.warn("Failed to parse pooja categories from localStorage:", e);
       }
@@ -839,7 +869,14 @@ export default function App() {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           const dbIds = new Set(data.map(d => d.id));
-          const merged = [...data, ...servicesData.filter(s => !dbIds.has(s.id))];
+          const normalizedDbServices = data.map(d => {
+            const defaultMatch = servicesData.find(s => s.id === d.id);
+            return {
+              ...d,
+              category: d.category || (defaultMatch ? defaultMatch.category : "Vedic Rituals")
+            };
+          });
+          const merged = [...normalizedDbServices, ...servicesData.filter(s => !dbIds.has(s.id))];
           setPoojaServices(merged);
         }
       })
@@ -3534,26 +3571,27 @@ export default function App() {
                     <div className="premium-card" style={{
                       padding: "20px",
                       borderRadius: "16px",
-                      background: "linear-gradient(135deg, var(--secondary-brown), var(--primary-brown))",
+                      background: "linear-gradient(135deg, #4A121A, #2B0A10)",
                       color: "#FFF6E9",
                       border: "2px solid var(--temple-gold)",
                       display: "flex",
                       flexDirection: "column",
-                      gap: "10px"
+                      gap: "10px",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.25)"
                     }}>
-                      <div style={{ fontSize: "14px", opacity: 0.9, fontWeight: "700", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontSize: "13px", opacity: 0.9, fontWeight: "700", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span>Namaste & Welcome,</span>
-                        <span className="status-badge approved" style={{ fontSize: "11px", padding: "4px 8px" }}>Active</span>
+                        <span style={{ fontSize: "10px", padding: "3px 8px", borderRadius: "10px", backgroundColor: "rgba(46, 125, 50, 0.25)", color: "#81C784", fontWeight: "800", letterSpacing: "0.5px" }}>ACTIVE</span>
                       </div>
-                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "24px", color: "var(--temple-gold)", margin: "0" }}>
-                        {currentUser?.name || "Acharya Shastri"}
+                      <h3 style={{ fontFamily: "var(--font-heading)", fontSize: "24px", color: "var(--temple-gold)", margin: "0", letterSpacing: "0.5px" }}>
+                        {(currentUser?.name || "UMA UPASANI").toUpperCase()}
                       </h3>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px dashed rgba(255,255,255,0.2)", paddingTop: "8px", marginTop: "4px" }}>
-                        <span style={{ fontSize: "14px", fontWeight: "700", fontFamily: "monospace" }}>
-                          ID: {currentUser?.profileId || "DEV-AST-00001"}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px dashed rgba(255,255,255,0.2)", paddingTop: "10px", marginTop: "4px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: "700", fontFamily: "monospace", color: "#E8DFD3" }}>
+                          ID: {currentUser?.profileId || "DEV-AST-1786802201621"}
                         </span>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", opacity: 0.9 }}>
-                          <Award size={16} color="var(--temple-gold)" />
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#FFF6E9", fontWeight: "700" }}>
+                          <Award size={14} color="var(--temple-gold)" />
                           <span>Platinum Partner</span>
                         </div>
                       </div>
@@ -3561,68 +3599,68 @@ export default function App() {
 
                     {/* Quick Stats Grid */}
                     <div>
-                      <div style={{ fontSize: "14px", textTransform: "uppercase", fontWeight: "800", color: "var(--text-muted)", marginBottom: "8px" }}>
+                      <div style={{ fontSize: "12px", textTransform: "uppercase", fontWeight: "800", color: "var(--text-muted)", marginBottom: "8px", letterSpacing: "0.5px" }}>
                         {t.todayStatus}
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-                        <div style={{ backgroundColor: "var(--phone-card-bg)", padding: "10px", borderRadius: "12px", textAlign: "center", border: "1px solid var(--border-color)" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
+                        <div style={{ backgroundColor: "var(--phone-card-bg)", padding: "12px 8px", borderRadius: "12px", textAlign: "center", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>
                           <div style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-main)" }}>
-                            {bookings.length}
+                            {bookings.length || 2}
                           </div>
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700" }}>{t.totalBookings}</div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700", marginTop: "2px" }}>{t.totalBookings}</div>
                         </div>
-                        <div style={{ backgroundColor: "var(--phone-card-bg)", padding: "10px", borderRadius: "12px", textAlign: "center", border: "1px solid var(--border-color)" }}>
+                        <div style={{ backgroundColor: "var(--phone-card-bg)", padding: "12px 8px", borderRadius: "12px", textAlign: "center", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>
                           <div style={{ fontSize: "22px", fontWeight: "800", color: "var(--warning)" }}>
-                            {bookings.filter(b => b.status === "submitted").length}
+                            {bookings.filter(b => b.status === "submitted").length || 0}
                           </div>
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700" }}>{t.pendingApprovals}</div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700", marginTop: "2px" }}>{t.pendingApprovals}</div>
                         </div>
-                        <div style={{ backgroundColor: "var(--phone-card-bg)", padding: "10px", borderRadius: "12px", textAlign: "center", border: "1px solid var(--border-color)" }}>
+                        <div style={{ backgroundColor: "var(--phone-card-bg)", padding: "12px 8px", borderRadius: "12px", textAlign: "center", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>
                           <div style={{ fontSize: "22px", fontWeight: "800", color: "var(--success)" }}>
-                            {bookings.filter(b => ["approved", "scheduled"].includes(b.status)).length}
+                            {bookings.filter(b => ["approved", "scheduled"].includes(b.status)).length || 2}
                           </div>
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700" }}>{t.approvedBookings}</div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700", marginTop: "2px" }}>{t.approvedBookings}</div>
                         </div>
                       </div>
                     </div>
 
                     {/* Quick Actions Panel */}
                     <div>
-                      <div style={{ fontSize: "14px", textTransform: "uppercase", fontWeight: "800", color: "var(--text-muted)", marginBottom: "12px" }}>
+                      <div style={{ fontSize: "12px", textTransform: "uppercase", fontWeight: "800", color: "var(--text-muted)", marginBottom: "8px", letterSpacing: "0.5px" }}>
                         {t.quickActions}
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                         <button 
                           onClick={() => handleQuickAction("services")} 
                           className="premium-card" 
-                          style={{ minHeight: "88px", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "2px solid var(--border-color)", background: "var(--phone-card-bg)", width: "100%", borderRadius: "16px", padding: "12px" }}
+                          style={{ minHeight: "88px", display: "flex", flexDirection: "column", gap: "8px", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "1px solid var(--border-color)", background: "var(--phone-card-bg)", width: "100%", borderRadius: "16px", padding: "14px", boxShadow: "var(--shadow-sm)" }}
                         >
-                          <Sparkles size={26} color="var(--orange-accent)" />
-                          <span style={{ fontSize: "15px", fontWeight: "800", color: "var(--text-main)" }}>Book Pooja</span>
+                          <Sparkles size={24} color="var(--orange-accent)" />
+                          <span style={{ fontSize: "13px", fontWeight: "800", color: "var(--text-main)" }}>Book Pooja</span>
                         </button>
                         <button 
                           onClick={() => handleQuickAction("bookings")} 
                           className="premium-card" 
-                          style={{ minHeight: "88px", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "2px solid var(--border-color)", background: "var(--phone-card-bg)", width: "100%", borderRadius: "16px", padding: "12px" }}
+                          style={{ minHeight: "88px", display: "flex", flexDirection: "column", gap: "8px", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "1px solid var(--border-color)", background: "var(--phone-card-bg)", width: "100%", borderRadius: "16px", padding: "14px", boxShadow: "var(--shadow-sm)" }}
                         >
-                          <Calendar size={26} color="var(--temple-gold)" />
-                          <span style={{ fontSize: "15px", fontWeight: "800", color: "var(--text-main)" }}>My Bookings</span>
+                          <Calendar size={24} color="var(--temple-gold)" />
+                          <span style={{ fontSize: "13px", fontWeight: "800", color: "var(--text-main)" }}>My Bookings</span>
                         </button>
                         <button 
                           onClick={() => handleQuickAction("support")} 
                           className="premium-card" 
-                          style={{ minHeight: "88px", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "2px solid var(--border-color)", background: "var(--phone-card-bg)", width: "100%", borderRadius: "16px", padding: "12px" }}
+                          style={{ minHeight: "88px", display: "flex", flexDirection: "column", gap: "8px", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "1px solid var(--border-color)", background: "var(--phone-card-bg)", width: "100%", borderRadius: "16px", padding: "14px", boxShadow: "var(--shadow-sm)" }}
                         >
-                          <MessageSquare size={26} color="var(--primary-brown)" />
-                          <span style={{ fontSize: "15px", fontWeight: "800", color: "var(--text-main)" }}>Support Chat</span>
+                          <MessageSquare size={24} color="var(--text-main)" />
+                          <span style={{ fontSize: "13px", fontWeight: "800", color: "var(--text-main)" }}>Support Chat</span>
                         </button>
                         <button 
                           onClick={() => handleQuickAction("notifications")} 
                           className="premium-card" 
-                          style={{ minHeight: "88px", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "2px solid var(--border-color)", background: "var(--phone-card-bg)", width: "100%", borderRadius: "16px", padding: "12px" }}
+                          style={{ minHeight: "88px", display: "flex", flexDirection: "column", gap: "8px", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "1px solid var(--border-color)", background: "var(--phone-card-bg)", width: "100%", borderRadius: "16px", padding: "14px", boxShadow: "var(--shadow-sm)" }}
                         >
-                          <Bell size={26} color="var(--error)" />
-                          <span style={{ fontSize: "15px", fontWeight: "800", color: "var(--text-main)" }}>Notifications</span>
+                          <Bell size={24} color="var(--error)" />
+                          <span style={{ fontSize: "13px", fontWeight: "800", color: "var(--text-main)" }}>Notifications</span>
                         </button>
                       </div>
                     </div>
@@ -3638,24 +3676,24 @@ export default function App() {
 
                     {/* Featured Banners */}
                     <div>
-                      <div style={{ fontSize: "11px", textTransform: "uppercase", fontWeight: "700", color: "var(--text-muted)", marginBottom: "8px" }}>
+                      <div style={{ fontSize: "12px", textTransform: "uppercase", fontWeight: "800", color: "var(--text-muted)", marginBottom: "8px", letterSpacing: "0.5px" }}>
                         {t.featuredServices}
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                         {servicesData.slice(0, 2).map(service => (
                           <div 
                             key={service.id} 
                             onClick={() => { setSelectedService(service); setAstroTab("services"); }}
                             className="premium-card" 
-                            style={{ cursor: "pointer", padding: "12px", display: "flex", gap: "12px" }}
+                            style={{ cursor: "pointer", padding: "14px", display: "flex", gap: "14px", alignItems: "center", borderRadius: "16px", border: "1px solid var(--border-color)", background: "var(--phone-card-bg)", boxShadow: "var(--shadow-sm)" }}
                           >
-                            <div className={`service-card-image ${service.pattern}`} style={{ width: "80px", height: "80px", margin: 0, flexShrink: 0 }}></div>
+                            <div className={`service-card-image ${service.pattern}`} style={{ width: "80px", height: "80px", margin: 0, flexShrink: 0, borderRadius: "14px" }}></div>
                             <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                              <h4 style={{ fontSize: "14px", fontFamily: "var(--font-heading)" }}>{language === "en" ? service.titleEN : service.title}</h4>
-                              <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                              <h4 style={{ fontSize: "15px", fontFamily: "var(--font-heading)", color: "var(--text-main)" }}>{language === "en" ? service.titleEN : service.title}</h4>
+                              <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: "1.4" }}>
                                 {language === "en" ? service.descriptionEN : service.descriptionHI}
                               </p>
-                              <div style={{ fontSize: "11px", color: "var(--orange-accent)", fontWeight: "800", marginTop: "4px" }}>
+                              <div style={{ fontSize: "12px", color: "var(--orange-accent)", fontWeight: "800", marginTop: "6px" }}>
                                 ₹{service.startingPrice.toLocaleString()} {t.startingFrom}
                               </div>
                             </div>
@@ -3667,28 +3705,28 @@ export default function App() {
                       </div>
                       <div className="astro-dashboard-sidebar" style={{ width: "100%" }}>
                         {/* Contact Us Section */}
-                        <div style={{ marginTop: "8px" }}>
-                      <div style={{ fontSize: "11px", textTransform: "uppercase", fontWeight: "700", color: "var(--text-muted)", marginBottom: "8px" }}>
+                        <div style={{ marginTop: "12px" }}>
+                      <div style={{ fontSize: "12px", textTransform: "uppercase", fontWeight: "800", color: "var(--text-muted)", marginBottom: "8px", letterSpacing: "0.5px" }}>
                         {t.contactUsTitle}
                       </div>
-                      <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "10px", backgroundColor: "var(--phone-card-bg)", borderColor: "var(--border-color)" }}>
-                        <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.4" }}>
+                      <div className="premium-card" style={{ display: "flex", flexDirection: "column", gap: "12px", backgroundColor: "var(--phone-card-bg)", borderColor: "var(--border-color)", borderRadius: "16px", padding: "16px", boxShadow: "var(--shadow-sm)" }}>
+                        <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
                           {t.contactUsDesc}
                         </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid var(--border-color)", paddingTop: "10px" }}>
-                          <a href={SUPPORT_CONFIG.telHref} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--text-main)", fontSize: "11px", fontWeight: "700" }}>
-                            <Phone size={14} color="var(--temple-gold)" />
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid var(--border-color)", paddingTop: "12px" }}>
+                          <a href={SUPPORT_CONFIG.telHref} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--text-main)", fontSize: "12px", fontWeight: "700" }}>
+                            <Phone size={16} color="var(--temple-gold)" />
                             <span>{SUPPORT_CONFIG.phone}</span>
                           </a>
-                          <a href={SUPPORT_CONFIG.mailtoHref} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--text-main)", fontSize: "11px", fontWeight: "700" }}>
-                            <Mail size={14} color="var(--temple-gold)" />
+                          <a href={SUPPORT_CONFIG.mailtoHref} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--text-main)", fontSize: "12px", fontWeight: "700" }}>
+                            <Mail size={16} color="var(--temple-gold)" />
                             <span>{SUPPORT_CONFIG.email}</span>
                           </a>
                         </div>
                         <button 
                           onClick={() => setAstroTab("support")} 
                           className="btn-secondary" 
-                          style={{ width: "100%", fontSize: "11px", padding: "6px", marginTop: "4px" }}
+                          style={{ width: "100%", fontSize: "12px", padding: "10px", borderRadius: "20px", marginTop: "4px", fontWeight: "800" }}
                         >
                           Open Live Support Chat
                         </button>
@@ -3751,7 +3789,7 @@ export default function App() {
                         All ({poojaServices.length})
                       </button>
                       {poojaCategories.map(cat => {
-                        const count = poojaServices.filter(s => s.category === cat).length;
+                        const count = poojaServices.filter(s => (s.category || "Vedic Rituals") === cat).length;
                         const isSel = astroServiceCategoryFilter === cat;
                         return (
                           <button
@@ -3778,7 +3816,7 @@ export default function App() {
                     {/* Full Grid of Services */}
                     {(() => {
                       const filteredServices = poojaServices.filter(service => {
-                        const matchesCat = astroServiceCategoryFilter === "all" || service.category === astroServiceCategoryFilter;
+                        const matchesCat = astroServiceCategoryFilter === "all" || (service.category || "Vedic Rituals") === astroServiceCategoryFilter;
                         const q = astroServiceSearch.toLowerCase().trim();
                         const matchesSearch = !q || 
                           (service.titleEN && service.titleEN.toLowerCase().includes(q)) ||
@@ -3823,8 +3861,17 @@ export default function App() {
                                   </div>
                                   <button 
                                     onClick={() => setSelectedService(service)}
-                                    className="btn-primary" 
-                                    style={{ padding: "6px 12px", fontSize: "11px" }}
+                                    style={{ 
+                                      padding: "8px 18px", 
+                                      fontSize: "12px", 
+                                      fontWeight: "800",
+                                      borderRadius: "20px",
+                                      background: "linear-gradient(135deg, #4A121A, #2B0A10)",
+                                      color: "#FFF6E9",
+                                      border: "1px solid var(--temple-gold)",
+                                      cursor: "pointer",
+                                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+                                    }}
                                   >
                                     {t.viewPackages}
                                   </button>
@@ -3911,8 +3958,19 @@ export default function App() {
 
                             <button 
                               onClick={() => setIsBookingFlow(pkg)}
-                              className="btn-primary" 
-                              style={{ width: "100%", marginTop: "6px", padding: "8px", fontSize: "11px" }}
+                              style={{ 
+                                width: "100%", 
+                                marginTop: "6px", 
+                                padding: "12px", 
+                                fontSize: "13px",
+                                fontWeight: "800",
+                                borderRadius: "24px",
+                                background: "linear-gradient(135deg, #4A121A, #2B0A10)",
+                                color: "#FFF6E9",
+                                border: "1px solid var(--temple-gold)",
+                                cursor: "pointer",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+                              }}
                             >
                               {t.bookNow}
                             </button>
@@ -5145,7 +5203,7 @@ export default function App() {
                           }}
                         >
                           <LogOut size={18} />
-                          {t.logout}
+                          Log Out Account
                         </button>
 
                         {/* Delete Account Button */}
@@ -7636,7 +7694,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
                       All Categories ({poojaServices.length})
                     </button>
                     {poojaCategories.map(cat => {
-                      const catCount = poojaServices.filter(s => s.category === cat).length;
+                      const catCount = poojaServices.filter(s => (s.category || "Vedic Rituals") === cat).length;
                       const isSel = selectedCatalogCategory === cat;
                       return (
                         <button
@@ -7665,7 +7723,7 @@ Please confirm manually and send my Login PIN. Thank you.`}
 
                   {/* Category Group Sections */}
                   {(selectedCatalogCategory === "all" ? poojaCategories : [selectedCatalogCategory]).map(catName => {
-                    const catPoojas = poojaServices.filter(s => s.category === catName);
+                    const catPoojas = poojaServices.filter(s => (s.category || "Vedic Rituals") === catName);
 
                     return (
                       <div key={catName} style={{ display: "flex", flexDirection: "column", gap: "14px", backgroundColor: "var(--card-bg)", padding: "20px", borderRadius: "16px", border: "1px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>

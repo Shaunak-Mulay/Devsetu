@@ -15,6 +15,7 @@ export const servicesData = [
     titleEN: "Mahamrityunjaya Pooja",
     titleHI: "महामृत्युंजय पूजा",
     titleMR: "महामृत्युंजय पूजा",
+    category: "Vedic Rituals",
     startingPrice: 5100,
     pattern: "pattern-shiva",
     descriptionEN: "A powerful ritual dedicated to Lord Shiva for health, longevity, and conquering fears.",
@@ -70,6 +71,7 @@ export const servicesData = [
     titleEN: "Kaalsarp Dosh Nivaran",
     titleHI: "कालसर्प दोष निवारण",
     titleMR: "कालसर्प दोष निवारण",
+    category: "Dosh Nivaran",
     startingPrice: 4500,
     pattern: "pattern-om",
     descriptionEN: "Specially organized ritual to resolve obstacles in career, finance, and family caused by Kaalsarp yoga.",
@@ -113,6 +115,7 @@ export const servicesData = [
     titleEN: "Navgrah Shanti Pooja",
     titleHI: "नवग्रह शांति पूजा",
     titleMR: "नवग्रह शांती पूजा",
+    category: "Graha Shanti",
     startingPrice: 6500,
     pattern: "pattern-navgrah",
     descriptionEN: "A holistic prayer to all nine planetary deities to seek blessings and pacify negative planetary alignments.",
@@ -156,6 +159,7 @@ export const servicesData = [
     titleEN: "Rudrabhishek Pooja",
     titleHI: "रुद्राभिषेक पूजा",
     titleMR: "रुद्राभिषेक पूजा",
+    category: "Vedic Rituals",
     startingPrice: 3800,
     pattern: "pattern-shiva",
     descriptionEN: "A sacred bathing ritual of Lord Shiva's Lingam with holy items to fulfill desires and clean karma.",
@@ -199,6 +203,7 @@ export const servicesData = [
     titleEN: "Durga Chandi Path",
     titleHI: "दुर्गा चंडी पाठ",
     titleMR: "दुर्गा चंडी पाठ",
+    category: "Prosperity & Kuber",
     startingPrice: 8500,
     pattern: "pattern-chandi",
     descriptionEN: "A powerful recitation of Durga Saptashati to invoke Goddess Durga's protective armor and win over adversaries.",
@@ -242,6 +247,7 @@ export const servicesData = [
     titleEN: "Pitri Dosh Nivaran",
     titleHI: "पितृ दोष निवारण",
     titleMR: "पितृ दोष निवारण",
+    category: "Dosh Nivaran",
     startingPrice: 5500,
     pattern: "pattern-pitru",
     descriptionEN: "A quiet, reverent ritual to pray for deceased ancestors, seeking their forgiveness and liberation.",
@@ -275,6 +281,94 @@ export const servicesData = [
           en: "Grand Narayan Bali puja at holy riverbank or temple, targeted ancestral release homam, two priests.",
           hi: "पवित्र नदी तट या मंदिर में भव्य नारायण बलि पूजा, लक्षित पितृ शांति हवन, दो पंडितों द्वारा।",
           mr: "पवित्र नदीकाठी किंवा मंदिरात भव्य नारायण बली पूजा, पूर्वज शांती हवन, दोन गुरुजींद्वारे."
+        }
+      }
+    ]
+  },
+  {
+    id: "satyanarayan",
+    title: "सत्यनारायण महापूजा",
+    titleEN: "Satyanarayan Maha Pooja",
+    titleHI: "सत्यनारायण महापूजा",
+    titleMR: "सत्यनारायण महापूजा",
+    category: "Custom Special Ritual",
+    startingPrice: 3500,
+    pattern: "pattern-om",
+    descriptionEN: "Traditional blessing pooja for family peace, auspicious new beginnings, housewarming, and gratitude.",
+    descriptionHI: "पारिवारिक शांति, शुभ आरंभ, गृह प्रवेश और कृतज्ञता के लिए पारंपरिक सत्यनारायण कथा और पूजा।",
+    descriptionMR: "कौटुंबिक शांतता, शुभ प्रारंभ, गृहप्रवेश आणि कृतज्ञतेसाठी पारंपारिक सत्यनारायण कथा आणि पूजा.",
+    benefits: {
+      en: ["Brings auspicious harmony to household", "Bestows health, wealth, and inner contentment", "Cleanses domestic aura"],
+      hi: ["घर में सुख-समृद्धि और शांति लाता है", "स्वास्थ्य, धन और संतुष्टि प्रदान करता है", "घरेलू वातावरण को पवित्र करता है"],
+      mr: ["घरात सुख-समृद्धी आणि शांती आणते", "आरोग्य, संपत्ती आणि समाधान देते", "घरातील वातावरण पवित्र करते"]
+    },
+    packages: [
+      {
+        id: "sn-standard",
+        name: { en: "Vedic Katha & Havan (1 Pandit)", hi: "वैदिक कथा एवं हवन (1 पंडित)", mr: "वैदिक कथा आणि हवन (1 पंडित)" },
+        price: 3500,
+        astroFee: 350,
+        duration: { en: "2.5 Hours", hi: "2.5 घंटे", mr: "2.5 तास" },
+        details: {
+          en: "Complete 5 chapters recitation of Satyanarayan Katha, panchamrut prasad, single priest setup.",
+          hi: "सत्यनारायण कथा के 5 अध्यायों का पूर्ण पाठ, पंचामृत प्रसाद, एक पंडित द्वारा अनुष्ठान।",
+          mr: "सत्यनारायण कथेचे ५ अध्यायांचे संपूर्ण पठण, पंचामृत प्रसाद, एक गुरुजींद्वारे विधी."
+        }
+      },
+      {
+        id: "sn-grand",
+        name: { en: "Grand Maha Satyanarayan (2 Pandits)", hi: "भव्य महा सत्यनारायण (2 पंडित)", mr: "भव्य महा सत्यनारायण (2 पंडित)" },
+        price: 6500,
+        astroFee: 700,
+        duration: { en: "4 Hours", hi: "4 घंटे", mr: "4 तास" },
+        details: {
+          en: "Grand katha recitation, Lakshmi Narayana Homa, special pushparchana, two priests setup.",
+          hi: "भव्य कथा पाठ, लक्ष्मी नारायण हवन, विशेष पुष्पार्चन, दो पंडितों द्वारा अनुष्ठान।",
+          mr: "भव्य कथा पठण, लक्ष्मी नारायण हवन, विशेष पुष्पार्चन, दोन गुरुजींद्वारे विधी."
+        }
+      }
+    ]
+  },
+  {
+    id: "mahalakshmi",
+    title: "महालक्ष्मी कुबेर पूजा",
+    titleEN: "Mahalakshmi & Kuber Puja",
+    titleHI: "महालक्ष्मी एवं कुबेर पूजा",
+    titleMR: "महालक्ष्मी आणि कुबेर पूजा",
+    category: "Prosperity & Kuber",
+    startingPrice: 7500,
+    pattern: "pattern-chandi",
+    descriptionEN: "Auspicious invocation of Goddess Lakshmi and Lord Kuber to attract abundance, financial stability, and business growth.",
+    descriptionHI: "समृद्धि, वित्तीय स्थिरता और व्यापार वृद्धि को आकर्षित करने के लिए मां लक्ष्मी और भगवान कुबेर की पावन पूजा।",
+    descriptionMR: "समृद्धी, आर्थिक स्थैर्य आणि व्यवसाय वाढ आकर्षित करण्यासाठी देवी लक्ष्मी आणि भगवान कुबेराची पावन पूजा.",
+    benefits: {
+      en: ["Unlocks wealth opportunities & cash flow", "Protects against financial loss", "Brings business prosperity"],
+      hi: ["धन के नए अवसर और व्यापार में वृद्धि", "वित्तीय नुकसान से सुरक्षा प्रदान करता है", "व्यापार में समृद्धि लाता है"],
+      mr: ["धनाचे नवीन मार्ग आणि व्यवसायात वाढ", "आर्थिक नुकसानीपासून संरक्षण करते", "व्यवसायात समृद्धी आणते"]
+    },
+    packages: [
+      {
+        id: "ml-standard",
+        name: { en: "Shri Suktam & Kuber Mantra (2 Pandits)", hi: "श्री सूक्त एवं कुबेर मंत्र (2 पंडित)", mr: "श्री सूक्त आणि कुबेर मंत्र (2 पंडित)" },
+        price: 7500,
+        astroFee: 800,
+        duration: { en: "3.5 Hours", hi: "3.5 घंटे", mr: "3.5 तास" },
+        details: {
+          en: "16 recitations of Shri Suktam, Kanakadhara Stotram, Kuber Yantra sanctification, two priests.",
+          hi: "श्री सूक्त के 16 पाठ, कनकधारा स्तोत्र, कुबेर यंत्र प्रतिष्ठा, दो पंडितों द्वारा पूजा।",
+          mr: "श्री सूक्ताचे १६ पाठ, कनकधारा स्तोत्र, कुबेर यंत्र प्रतिष्ठा, दोन गुरुजींद्वारे पूजा."
+        }
+      },
+      {
+        id: "ml-premium",
+        name: { en: "Ashta Lakshmi Maha Homam (4 Pandits)", hi: "अष्टलक्ष्मी महा हवन (4 पंडित)", mr: "अष्टलक्ष्मी महा हवन (4 पंडित)" },
+        price: 16500,
+        astroFee: 1800,
+        duration: { en: "5.5 Hours", hi: "5.5 घंटे", mr: "5.5 तास" },
+        details: {
+          en: "Grand invocation of all 8 forms of Lakshmi with special lotus flowers ahuti, grand homam, four priests.",
+          hi: "कमल के पुष्पों की आहुति के साथ मां लक्ष्मी के 8 रूपों का आह्वान, भव्य हवन, चार पंडितों द्वारा।",
+          mr: "कमळाच्या फुलांच्या आहुतीसह लक्ष्मीच्या ८ रूपांचे आवाहन, भव्य हवन, चार गुरुजींद्वारे विधी."
         }
       }
     ]
